@@ -577,3 +577,30 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   .alert { padding: var(--sp-3); font-size: var(--text-xs); }
   .mobile-toggle { top: var(--sp-3); left: var(--sp-3); width: 40px; height: 40px; }
 }
+
+/* nuevo codigo de css para el logo al lado de invanrtario */ /*Randy*/
+.sidebar .logo {
+    display: flex;             /* ¡ESTA ES LA MAGIA! Pone logo y texto en línea */
+    align-items: center;       /* Alinea verticalmente los centros de ambos */
+    justify-content: flex-start; /* Los pega a la izquierda */
+    
+    /* Espaciado y márgenes (ajústalos según tu diseño) */
+    padding: 20px 15px;        /* Espacio interno arriba/abajo y lados */
+    gap: 12px;                 /* Espacio exacto entre el logo y el texto */
+    
+    /* Estilos del texto "Inventario" */
+    color: #ffffff;            /* Blanco brillante, como en tu objetivo */
+    font-family: 'Inter', sans-serif; /* Asegura usar tu fuente */
+    font-size: 1.5rem;         /* Tamaño de fuente más grande */
+    font-weight: 700;          /* Negrita */
+    text-transform: none;      /* Asegura que no esté todo en mayúsculas */
+}
+
+/* Estilos específicos para la imagen del logo */
+.sidebar .logo img {
+    height: 45px;              /* Ajusta el alto para que se vea bien */
+    width: auto;               /* Mantiene la proporción */
+    object-fit: contain;       /* No estira la imagen */
+    display: block;            /* Quita espacios extraños debajo */
+    margin: 0;                 /* Quita márgenes automáticos */
+}
