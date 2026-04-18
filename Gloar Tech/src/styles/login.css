@@ -115,29 +115,33 @@ body {
 }
 
 
-/* nuevo codigo de css para el logo al lado de invanrtario */ /*Randy*/
-.sidebar .logo {
-    display: flex;             /* ¡ESTA ES LA MAGIA! Pone logo y texto en línea */
-    align-items: center;       /* Alinea verticalmente los centros de ambos */
-    justify-content: flex-start; /* Los pega a la izquierda */
-    
-    /* Espaciado y márgenes (ajústalos según tu diseño) */
-    padding: 20px 15px;        /* Espacio interno arriba/abajo y lados */
-    gap: 12px;                 /* Espacio exacto entre el logo y el texto */
-    
-    /* Estilos del texto "Inventario" */
-    color: #ffffff;            /* Blanco brillante, como en tu objetivo */
-    font-family: 'Inter', sans-serif; /* Asegura usar tu fuente */
-    font-size: 1.5rem;         /* Tamaño de fuente más grande */
-    font-weight: 700;          /* Negrita */
-    text-transform: none;      /* Asegura que no esté todo en mayúsculas */
+/*Randy*/
+/* El contenedor cuadrado */
+.login__icon-wrap {
+    width: 80px; 
+    height: 80px; 
+    margin: 0 auto 15px;
+    background: hsl(90, 100%, 100%); /* El verde de tu logo */ /*Randy cambie ese color a blanco estaba verde....*/ 
+    border-radius: 16px; /* Ajusta qué tan redondeado lo quieres */
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    box-shadow: 0 0 20px rgba(19, 113, 1, 0.4); /* Brillo verde */
+    overflow: hidden;
 }
 
-/* Estilos específicos para la imagen del logo */
-.sidebar .logo img {
-    height: 45px;              /* Ajusta el alto para que se vea bien */
-    width: auto;               /* Mantiene la proporción */
-    object-fit: contain;       /* No estira la imagen */
-    display: block;            /* Quita espacios extraños debajo */
-    margin: 0;                 /* Quita márgenes automáticos */
+/* La imagen dentro del cuadro */
+.login__img-logo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Para que no se deforme */
+    padding: 10px;       /* Espacio interno para que el logo respire */
 }
+
+/* El texto "Inventario" */
+.login__app-name {
+    color: #ffffff;
+    font-size: 1.75rem;
+    font-weight: 700;
+}
+/*Randy*/
