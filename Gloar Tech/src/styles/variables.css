@@ -4,19 +4,19 @@
    ============================================================ */
 :root {
   /* Colores de marca */
-  --color-primary:       #055de2;
-  --color-primary-dark:  #091933;
-  --color-primary-light: #e8f2fc;
-  --color-primary-hover: #0a52c9;
+  --color-primary:       #09861e;
+  --color-primary-dark:  #17460d;
+  --color-primary-light: #eaf0f7;
+  --color-primary-hover: #37b842;
 
   /* Estados */
-  --color-success:       #28a745;
+  --color-success:       #058d25;
   --color-success-light: #d4edda;
   --color-warning:       #ffc107;
   --color-warning-light: #fff3cd;
   --color-danger:        #dc3545;
   --color-danger-light:  #f8d7da;
-  --color-info:          #17a2b8;
+  --color-info:          #ffffff;
   --color-info-light:    #d1ecf1;
 
   /* Escala de grises */
