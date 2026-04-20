@@ -15,10 +15,8 @@ const UI = (() => {
       link.addEventListener('click', e => {
         e.preventDefault();
         const target = link.dataset.section;
-
         links.forEach(l => l.classList.remove('is-active'));
         link.classList.add('is-active');
-
         sections.forEach(s => {
           if (s.id === target) {
             s.classList.add('is-active');
@@ -43,10 +41,8 @@ const UI = (() => {
       if (window.innerWidth <= 992) toggleBtn.style.display = 'flex';
       else { toggleBtn.style.display = 'none'; sidebar.classList.remove('is-open'); }
     }
-
     check();
     window.addEventListener('resize', check);
-
     toggleBtn.addEventListener('click', e => { e.stopPropagation(); sidebar.classList.toggle('is-open'); });
     document.addEventListener('click', e => {
       if (window.innerWidth <= 992 && sidebar.classList.contains('is-open') &&
@@ -54,7 +50,6 @@ const UI = (() => {
         sidebar.classList.remove('is-open');
       }
     });
-
     document.querySelectorAll('.nav-link').forEach(l =>
       l.addEventListener('click', () => { if (window.innerWidth <= 992) sidebar.classList.remove('is-open'); })
     );
@@ -67,14 +62,13 @@ const UI = (() => {
     document.querySelectorAll('.table-wrapper').forEach(wrap => {
       const table = wrap.querySelector('.data-table');
       const hint  = wrap.querySelector('.table-hint');
-      if (table && hint) {
+      if (table && hint)
         hint.classList.toggle('u-hidden', !(window.innerWidth <= 768 && table.scrollWidth > wrap.clientWidth));
-      }
     });
   }
 
   // ----------------------------------------------------------------
-  // MODAL (generic confirm)
+  // MODALS
   // ----------------------------------------------------------------
   let _adminCb  = null;
   let _deleteCb = null;
@@ -96,8 +90,8 @@ const UI = (() => {
 
   function initModals() {
     // Admin confirm
-    document.getElementById('closeAdminModal')?.addEventListener('click', () => Utils.hideModal('adminConfirmModal'));
-    document.getElementById('adminConfirmCancelBtn')?.addEventListener('click', () => Utils.hideModal('adminConfirmModal'));
+    document.getElementById('closeAdminModal')?.addEventListener('click',        () => Utils.hideModal('adminConfirmModal'));
+    document.getElementById('adminConfirmCancelBtn')?.addEventListener('click',  () => Utils.hideModal('adminConfirmModal'));
     document.getElementById('adminConfirmOkBtn')?.addEventListener('click', () => {
       const val = document.getElementById('adminConfirmKey').value.trim();
       if (val !== Auth.getPassword('admin')) {
@@ -113,7 +107,7 @@ const UI = (() => {
     });
 
     // Delete confirm
-    document.getElementById('closeDeleteModal')?.addEventListener('click', () => Utils.hideModal('deleteConfirmModal'));
+    document.getElementById('closeDeleteModal')?.addEventListener('click',       () => Utils.hideModal('deleteConfirmModal'));
     document.getElementById('deleteConfirmCancelBtn')?.addEventListener('click', () => Utils.hideModal('deleteConfirmModal'));
     document.getElementById('deleteConfirmOkBtn')?.addEventListener('click', () => {
       Utils.hideModal('deleteConfirmModal');
@@ -123,10 +117,15 @@ const UI = (() => {
     // Invoice modal
     document.getElementById('closeInvoiceModal')?.addEventListener('click', () => Utils.hideModal('invoiceModal'));
     document.getElementById('closeInvoiceBtn')?.addEventListener('click',   () => Utils.hideModal('invoiceModal'));
+
+    // Invoice actions
+    document.getElementById('downloadInvoiceExcelBtn')?.addEventListener('click', downloadCurrentInvoiceExcel);
+    document.getElementById('downloadInvoicePDFBtn')?.addEventListener('click',   downloadCurrentInvoicePDF);
+    document.getElementById('printInvoiceBtn')?.addEventListener('click',         printCurrentInvoice);
   }
 
   // ----------------------------------------------------------------
-  // INVOICE MODAL
+  // INVOICE MODAL  —  Preview con apariencia de la plantilla
   // ----------------------------------------------------------------
   let _lastVentaInv = null;
   let _lastCotInv   = null;
@@ -134,71 +133,159 @@ const UI = (() => {
   function showVentaInvoice(inv) {
     _lastVentaInv = inv;
     _lastCotInv   = null;
-    document.getElementById('invoiceModalTitle').textContent = 'Venta Registrada — Factura';
-    document.getElementById('invoicePreview').innerHTML = buildInvoiceHTML(inv, false);
+    document.getElementById('invoiceModalTitle').textContent = 'Factura de Venta';
+    document.getElementById('invoicePreview').innerHTML = buildVentaHTML(inv);
     Utils.showModal('invoiceModal');
   }
 
   function showCotizacionInvoice(header, items) {
     _lastCotInv   = { header, items };
     _lastVentaInv = null;
-    document.getElementById('invoiceModalTitle').textContent = `Factura — ${header.numero}`;
-    document.getElementById('invoicePreview').innerHTML = buildCotInvoiceHTML(header, items);
+    document.getElementById('invoiceModalTitle').textContent = `Cotización — ${header.numero}`;
+    document.getElementById('invoicePreview').innerHTML = buildCotHTML(header, items);
     Utils.showModal('invoiceModal');
   }
 
-  function buildInvoiceHTML(inv, isCot) {
+  // ---- Shared logo block HTML ----
+  function logoBlock() {
+    const E = Utils.EMPRESA;
     return `
-      <div class="invoice">
-        <div class="invoice__top">
-          <div>
-            <div class="invoice__company"><i class="fas fa-warehouse"></i> Sistema de Inventario</div>
-            <div class="invoice__meta">Fecha: ${inv.fecha} &nbsp;|&nbsp; Hora: ${inv.hora || ''}</div>
-            <div class="invoice__meta">N°: <strong>${inv.id}</strong></div>
-          </div>
-          <div class="invoice__badge">${isCot ? 'COTIZACIÓN' : 'FACTURA'}</div>
+      <div class="inv-logo">
+        <div class="inv-logo__title">${E.nombre}</div>
+        <div class="inv-logo__house">🏠</div>
+        <div class="inv-logo__sep"></div>
+        <div class="inv-logo__info">
+          correo: ${E.correo}<br>
+          ${E.direccion}<br>
+          telefono: ${E.telefono}<br>
+          RNC: ${E.rnc}
         </div>
-        <div class="invoice__divider"></div>
-        <div class="invoice__client"><strong>Cliente:</strong> ${inv.cliente}</div>
-        <table class="invoice__table">
-          <thead><tr><th>Producto</th><th>Código</th><th>Cant.</th><th>P. Unitario</th><th>Total</th></tr></thead>
-          <tbody><tr>
-            <td>${inv.producto}</td><td>${inv.codigo}</td>
-            <td>${inv.cantidad}</td><td>$${inv.precio.toFixed(2)}</td>
-            <td><strong>$${inv.total.toFixed(2)}</strong></td>
-          </tr></tbody>
-        </table>
-        <div class="invoice__total"><span>TOTAL A PAGAR:</span><span class="invoice__total-amount">$${inv.total.toFixed(2)}</span></div>
-        <div class="invoice__footer">Gracias por su preferencia.</div>
+        <div class="inv-logo__contact">contacto: ${E.contacto}</div>
       </div>`;
   }
 
-  function buildCotInvoiceHTML(h, items) {
-    const rows = items.map(it =>
-      `<tr><td>${it.nombre}</td><td>${it.codigo}</td><td>${it.cant}</td><td>$${it.precio.toFixed(2)}</td><td><strong>$${it.subtotal.toFixed(2)}</strong></td></tr>`
-    ).join('');
+  // ---- Venta preview ----
+  function buildVentaHTML(inv) {
+    const itebis = inv.total * Utils.EMPRESA.itebis;
+    const total  = inv.total + itebis;
     return `
-      <div class="invoice">
-        <div class="invoice__top">
-          <div>
-            <div class="invoice__company"><i class="fas fa-warehouse"></i> Sistema de Inventario</div>
-            <div class="invoice__meta">N°: <strong>${h.numero}</strong> &nbsp;|&nbsp; Fecha: ${h.fecha}</div>
-            ${h.validez ? `<div class="invoice__meta">Válida por: ${h.validez} días</div>` : ''}
+      <div class="inv-doc">
+        <div class="inv-header">
+          ${logoBlock()}
+          <div class="inv-meta">
+            <div class="inv-meta__title">Factura</div>
+            <div class="inv-meta__rows">
+              <div>No. ${inv.id}</div>
+              <div>Fecha: ${inv.fecha}</div>
+              <div>Hora: ${inv.hora}</div>
+              <br>
+              <div>RNC.</div>
+              <div>Cliente: <strong>${inv.cliente}</strong></div>
+              <div>Telefono:</div>
+              <div>Contacto:</div>
+              <div>Direccion:</div>
+            </div>
           </div>
-          <div class="invoice__badge">COTIZACIÓN</div>
         </div>
-        <div class="invoice__divider"></div>
-        <div class="invoice__client"><strong>Cliente:</strong> ${h.cliente}${h.email ? ` &nbsp;|&nbsp; ${h.email}` : ''}</div>
-        <table class="invoice__table">
-          <thead><tr><th>Producto</th><th>Código</th><th>Cant.</th><th>P. Unitario</th><th>Subtotal</th></tr></thead>
-          <tbody>${rows}</tbody>
+
+        <table class="inv-table">
+          <thead>
+            <tr><th>NO.</th><th>DESCRIPCION</th><th>CANT.</th><th>P. UNITARIO</th><th>SUB-TOTAL</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="tc">A</td>
+              <td>${inv.producto} (${inv.codigo})</td>
+              <td class="tc">${inv.cantidad}</td>
+              <td class="tr">${Utils.fmt(inv.precio)}</td>
+              <td class="tr">${Utils.fmt(inv.total)}</td>
+            </tr>
+            <tr><td colspan="3"></td>
+              <td class="tfoot-lbl">SUB-TOTAL</td>
+              <td class="tfoot-val">${Utils.fmt(inv.total)}</td>
+            </tr>
+            <tr><td colspan="3"></td>
+              <td class="tfoot-lbl">ITEBIS ${Math.round(Utils.EMPRESA.itebis*100)}%</td>
+              <td class="tfoot-val">${Utils.fmt(itebis)}</td>
+            </tr>
+            <tr><td colspan="3"></td>
+              <td class="tfoot-lbl tfoot-hi">TOTAL RDS</td>
+              <td class="tfoot-val tfoot-hi">${Utils.fmt(total)}</td>
+            </tr>
+          </tbody>
         </table>
-        <div class="invoice__total"><span>TOTAL:</span><span class="invoice__total-amount">$${h.total.toFixed(2)}</span></div>
-        ${h.notas ? `<div style="font-size:0.8rem;color:var(--gray-600);margin-top:8px;"><b>Notas:</b> ${h.notas}</div>` : ''}
-        <div class="invoice__footer">Gracias por su preferencia.</div>
+
+        <div class="inv-footer">Gracias por su compra.</div>
       </div>`;
   }
 
+  // ---- Cotización preview ----
+  function buildCotHTML(h, items) {
+    const subtotal = items.reduce((s, it) => s + it.subtotal, 0);
+    const itebis   = subtotal * Utils.EMPRESA.itebis;
+    const total    = subtotal + itebis;
+
+    const itemRows = items.map((it, i) => `
+      <tr>
+        <td class="tc">${String.fromCharCode(65 + i)}</td>
+        <td>${it.nombre}</td>
+        <td class="tc">${it.cant}</td>
+        <td class="tc">${it.unidad || 'M2'}</td>
+        <td class="tr">${Utils.fmt(it.precio)}</td>
+        <td class="tr">${Utils.fmt(it.subtotal)}</td>
+      </tr>`).join('');
+
+    const emptyRows = Array(Math.max(0, 3 - items.length))
+      .fill('<tr><td></td><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>').join('');
+
+    return `
+      <div class="inv-doc">
+        <div class="inv-header">
+          ${logoBlock()}
+          <div class="inv-meta">
+            <div class="inv-meta__title">Cotizacion</div>
+            <div class="inv-meta__rows">
+              <div>No. ${h.numero}</div>
+              <div>Fecha: ${h.fecha}</div>
+              <div>Cotizacion valida por ${h.validez || 15} dias.</div>
+              <br>
+              <div>RNC.</div>
+              <div>Cotizado a: <strong>${h.cliente}</strong></div>
+              <div>Telefono: ${h.telefono || ''}</div>
+              <div>Contacto:</div>
+              <div>Direccion: ${h.direccion || 'Santo Domingo D.N.'}</div>
+            </div>
+          </div>
+        </div>
+
+        <table class="inv-table">
+          <thead>
+            <tr><th>NO.</th><th>DESCRIPCION</th><th>AREA</th><th>UN</th><th>VALOR</th><th>SUB-TOTAL</th></tr>
+          </thead>
+          <tbody>
+            ${itemRows}
+            ${emptyRows}
+            <tr>
+              <td colspan="4" class="inv-cond">${h.notas ? `condiciones de pago: ${h.notas}` : ''}</td>
+              <td class="tfoot-lbl">SUB-TOTAL</td>
+              <td class="tfoot-val">${Utils.fmt(subtotal)}</td>
+            </tr>
+            <tr><td colspan="4"></td>
+              <td class="tfoot-lbl">ITEBIS ${Math.round(Utils.EMPRESA.itebis*100)}%</td>
+              <td class="tfoot-val">${Utils.fmt(itebis)}</td>
+            </tr>
+            <tr><td colspan="4"></td>
+              <td class="tfoot-lbl tfoot-hi">TOTAL RDS</td>
+              <td class="tfoot-val tfoot-hi">${Utils.fmt(total)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="inv-footer">Esta cotización es válida por el período indicado.</div>
+      </div>`;
+  }
+
+  // ---- Download / Print dispatchers ----
   function downloadCurrentInvoiceExcel() {
     if (_lastCotInv)   { Utils.generateCotizacionExcel(_lastCotInv.header, _lastCotInv.items); return; }
     if (_lastVentaInv) { Utils.generateVentaExcel(_lastVentaInv); }
@@ -209,12 +296,16 @@ const UI = (() => {
     if (_lastVentaInv) { Utils.generateVentaPDF(_lastVentaInv); }
   }
 
+  function printCurrentInvoice() {
+    if (_lastCotInv)   { Utils.printCotizacion(_lastCotInv.header, _lastCotInv.items); return; }
+    if (_lastVentaInv) { Utils.printVenta(_lastVentaInv); }
+  }
+
   // ----------------------------------------------------------------
-  // POPULATE SELECT helpers
+  // POPULATE SELECTS
   // ----------------------------------------------------------------
   function populateCategorySelects(cats) {
-    const ids = ['p_categoria', 'ep_categoria'];
-    ids.forEach(id => {
+    ['p_categoria', 'ep_categoria'].forEach(id => {
       const sel = document.getElementById(id);
       if (!sel) return;
       sel.innerHTML = cats.length === 0
@@ -238,26 +329,26 @@ const UI = (() => {
   function fillProductDetail(product, divId, prefix) {
     const div = document.getElementById(divId);
     if (!div) return;
-    const isCompra    = prefix === 'co';
-    const price       = isCompra ? product.precio_compra : product.precio_venta;
-    const priceLabel  = isCompra ? 'Precio Compra' : 'Precio Venta';
-    const stockColor  = product.stock < 5 ? 'u-danger' : 'u-success';
+    const isCompra   = prefix === 'co';
+    const price      = isCompra ? product.precio_compra : product.precio_venta;
+    const priceLabel = isCompra ? 'Precio Compra' : 'Precio Venta';
+    const stockCls   = product.stock < 5 ? 'u-danger' : 'u-success';
 
     div.classList.remove('u-hidden');
     div.innerHTML = `
       <p><b>ID:</b> ${product.id} &nbsp;|&nbsp; <b>Producto:</b> ${product.nombre} (${product['código']})</p>
       <p><b>Categoría:</b> ${product['categoría']} &nbsp;|&nbsp;
-         <b>Stock:</b> <span class="${stockColor}">${product.stock}</span></p>
+         <b>Stock:</b> <span class="${stockCls}">${product.stock}</span></p>
       <p><b>${priceLabel}:</b> $${parseFloat(price).toFixed(2)}</p>
       ${!isCompra && product.stock < 5
         ? `<p class="alert alert--warning is-visible" style="margin-top:8px;"><i class="fas fa-exclamation-triangle"></i> Stock bajo: solo ${product.stock} unidades.</p>`
         : ''}`;
 
-    const priceInput = prefix === 'co'  ? document.getElementById('co_precio_compra')
-                     : prefix === 'v'   ? document.getElementById('v_precio_venta')
-                     : prefix === 'cot' ? document.getElementById('cot_precio')
-                     : null;
-    if (priceInput) priceInput.value = parseFloat(price).toFixed(2);
+    const inp = prefix === 'co'  ? document.getElementById('co_precio_compra')
+              : prefix === 'v'   ? document.getElementById('v_precio_venta')
+              : prefix === 'cot' ? document.getElementById('cot_precio')
+              : null;
+    if (inp) inp.value = parseFloat(price).toFixed(2);
   }
 
   // ----------------------------------------------------------------
@@ -280,8 +371,60 @@ const UI = (() => {
     initNavigation, initMobileSidebar, optimizeTables,
     showAdminConfirm, showDeleteConfirm, initModals,
     showVentaInvoice, showCotizacionInvoice,
-    downloadCurrentInvoiceExcel, downloadCurrentInvoicePDF,
+    downloadCurrentInvoiceExcel, downloadCurrentInvoicePDF, printCurrentInvoice,
     populateCategorySelects, buildCategoryList,
     fillProductDetail, applyRole,
   };
 })();
+
+
+// Función para mostrar las ventas en la tabla
+UI.renderHistorialVentas = function(ventas) {
+    const contenedor = document.getElementById('listaHistorialVentas');
+    if (!contenedor) return;
+
+    // Invertimos el array para ver las más recientes primero
+    contenedor.innerHTML = ventas.reverse().map(v => {
+        const total = parseFloat(v.precio_venta) * parseInt(v.cantidad);
+        return `
+        <tr>
+            <td>${v.id}</td>
+            <td>${new Date(v.fecha).toLocaleDateString()}</td>
+            <td>${v.cliente || 'Consumidor Final'}</td>
+            <td><b>${total.toLocaleString('en-US', {minimumFractionDigits: 2})}</b></td>
+            <td>
+                <button class="btn btn--sm btn--secondary" onclick="UI.prepararReimpresion('${v.id}')">
+                    <i class="fas fa-print"></i> Reimprimir
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+};
+
+// Lógica para recuperar los datos de la venta y generar el PDF
+UI.prepararReimpresion = function(id) {
+    // Buscamos la venta en los datos globales (asumiendo que están en App.data.ventas)
+    const venta = App.data.ventas.find(v => String(v.id) === String(id));
+    const producto = App.data.productos.find(p => String(p.id) === String(venta.producto_id));
+
+    if (venta && producto) {
+        const header = {
+            numero: venta.id,
+            fecha: new Date(venta.fecha).toLocaleDateString(),
+            cliente: venta.cliente || 'Consumidor Final',
+            total: parseFloat(venta.precio_venta) * parseInt(venta.cantidad)
+        };
+
+        const item = [{
+            nombre: producto.nombre,
+            cant: venta.cantidad,
+            precio: parseFloat(venta.precio_venta),
+            subtotal: parseFloat(venta.precio_venta) * parseInt(venta.cantidad)
+        }];
+
+        // Reutiliza la función de PDF existente en utils.js
+        Utils.generateCotizacionPDF(header, item, false);
+    } else {
+        alert("No se encontraron los datos para reimprimir esta factura.");
+    }
+};

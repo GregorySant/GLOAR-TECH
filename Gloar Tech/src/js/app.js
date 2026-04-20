@@ -14,13 +14,14 @@ if (!Auth.isLoggedIn()) {
 // ESTADO LOCAL
 // ----------------------------------------------------------------
 const State = {
-  productCache:     {},   // { [id]: productObject }
+  productCache:     {},
   resumenType:      '',
   resumenData:      [],
   cotItems:         [],
   cotCounter:       0,
   editingCotNumero: null,
   charts: { financiero: null, tendencias: null },
+  _lastVentaForPrint: null,
 };
 
 // ----------------------------------------------------------------
@@ -105,7 +106,13 @@ function bindForms() {
   document.getElementById('cot_guardarBtn')?.addEventListener('click', cotGuardar);
   document.getElementById('cot_generarExcelBtn')?.addEventListener('click', () => cotDescargar('excel'));
   document.getElementById('cot_generarPDFBtn')?.addEventListener('click',   () => cotDescargar('pdf'));
+  document.getElementById('cot_imprimirBtn')?.addEventListener('click',     () => cotDescargar('print'));
   document.getElementById('cot_limpiarBtn')?.addEventListener('click', cotCancelar);
+
+  // Botón imprimir en ventas (muestra última factura emitida)
+  document.getElementById('ventaPrintBtn')?.addEventListener('click', () => {
+    if (State._lastVentaForPrint) Utils.printVenta(State._lastVentaForPrint);
+  });
 
   // Resúmenes
   document.getElementById('resumenVentasBtn')?.addEventListener('click', () => loadResumen('Ventas'));
@@ -379,6 +386,16 @@ async function handleProductSearch(query, prefix) {
   } catch (err) {
     if (detailDiv) { detailDiv.classList.remove('u-hidden'); detailDiv.innerHTML = `<p class="u-danger">Error: ${err.message}</p>`; }
   }
+  // Dentro de la función que carga los datos iniciales o después de una venta exitosa =============================================================================== gregory
+async function refreshData() {
+    // ... código de carga existente ...
+    const respVentas = await apiGet("getInventario", { sheetName: "Ventas" });
+    if (respVentas.status === "success") {
+        App.data.ventas = respVentas.data; // Guardamos en memoria para la reimpresión
+        UI.renderHistorialVentas(respVentas.data);
+    }
+}
+
 }
 
 // ----------------------------------------------------------------
@@ -407,14 +424,18 @@ async function handleTransaccion(e, type) {
     if (res.status === 'success') {
       Utils.showAlert(statusId, 'success', res.message);
       if (type === 'venta' && producto) {
-        UI.showVentaInvoice({
+        const invData = {
           id: res.id || `V-${Date.now()}`,
           cliente: extraVal, fecha: Utils.today(), hora: Utils.nowTime(),
           producto: producto.nombre, codigo: producto['código'],
           categoria: producto['categoría'],
           cantidad: parseInt(cantidad), precio: parseFloat(precio),
           total: parseInt(cantidad) * parseFloat(precio),
-        });
+        };
+        State._lastVentaForPrint = invData;
+        UI.showVentaInvoice(invData);
+        const pg = document.getElementById('ventaPrintGroup');
+        if (pg) pg.style.display = 'flex';
       }
       e.target.reset();
       delete State.productCache[productoId];
@@ -512,17 +533,20 @@ function cotQuitarItem(id) { State.cotItems = State.cotItems.filter(i => i.id !=
 function renderCotTable() {
   const tb      = document.getElementById('cotTableBody');
   const tf      = document.getElementById('cotTableFoot');
-  const excelBtn= document.getElementById('cot_generarExcelBtn');
-  const pdfBtn  = document.getElementById('cot_generarPDFBtn');
+  const excelBtn  = document.getElementById('cot_generarExcelBtn');
+  const pdfBtn    = document.getElementById('cot_generarPDFBtn');
+  const printBtn  = document.getElementById('cot_imprimirBtn');
   if (!State.cotItems.length) {
     tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray-500);">Agregue productos.</td></tr>';
     tf.innerHTML = '';
     if (excelBtn) excelBtn.disabled = true;
     if (pdfBtn)   pdfBtn.disabled   = true;
+    if (printBtn) printBtn.disabled = true;
     return;
   }
   if (excelBtn) excelBtn.disabled = false;
   if (pdfBtn)   pdfBtn.disabled   = false;
+  if (printBtn) printBtn.disabled = false;
   tb.innerHTML = State.cotItems.map((it, i) => `
     <tr>
       <td>${i+1}</td><td>${it.nombre}</td><td>${it.codigo}</td>
@@ -559,9 +583,14 @@ function cotGuardar() {
 }
 
 function cotDescargar(format) {
+  if (!State.cotItems.length) {
+    Utils.showAlert('statusCotizacion', 'warning', 'Agregue al menos un producto.');
+    return;
+  }
   const header = buildCotHeader();
-  if (format === 'pdf')   Utils.generateCotizacionPDF(header, State.cotItems);
-  else                    Utils.generateCotizacionExcel(header, State.cotItems);
+  if (format === 'pdf')       Utils.generateCotizacionPDF(header, State.cotItems);
+  else if (format === 'print') Utils.printCotizacion(header, State.cotItems);
+  else                        Utils.generateCotizacionExcel(header, State.cotItems);
 }
 
 function cotFacturar(numero) {
