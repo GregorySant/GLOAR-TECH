@@ -4,12 +4,10 @@
 
 const Utils = (() => {
 
-  // ---- IDs ----
   function gen7DigitId() {
     return String(Math.floor(1000000 + Math.random() * 9000000));
   }
 
-  // ---- Alertas ----
   const ICON = { success: 'check', error: 'times', warning: 'exclamation-triangle', info: 'info' };
 
   function showAlert(elementId, type, message) {
@@ -24,19 +22,15 @@ const Utils = (() => {
     if (el) el.className = 'alert';
   }
 
-  // ---- Modales ----
   function showModal(id)  { document.getElementById(id)?.classList.remove('u-hidden'); }
   function hideModal(id)  { document.getElementById(id)?.classList.add('u-hidden'); }
-
-  // ---- Formularios ----
   function resetForm(formId) { document.getElementById(formId)?.reset(); }
 
-  // ---- Fechas ----
   function today()   { return new Date().toLocaleDateString('es-DO'); }
-  function nowTime() { return new Date().toLocaleTimeString('es-DO'); }
+  function nowTime() { return new Date().toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' }); }
 
   // ================================================================
-  // EMPRESA INFO — edita aquí para personalizar los documentos
+  // EMPRESA INFO
   // ================================================================
   const EMPRESA = {
     nombre:    'Soluciones Linares P',
@@ -45,198 +39,271 @@ const Utils = (() => {
     telefono:  '849-850-0698',
     rnc:       '22500275478',
     contacto:  'Gumeidy Linares',
-    itebis:    0.18,       // 18 %  (0 para no aplicar)
+    itebis:    0.18,
     moneda:    'RD$',
   };
 
-  // ================================================================
-  // HELPER — formateo de moneda
-  // ================================================================
   function fmt(n) {
     return EMPRESA.moneda + ' ' + parseFloat(n).toLocaleString('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   // ================================================================
-  // PDF: COTIZACIÓN  (plantilla igual a la imagen)
+  // SHARED PRINT CSS — elegant template base
   // ================================================================
-  function generateCotizacionPDF(header, items) {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit: 'mm', format: 'letter' });
-    const PW = 215.9;   // letter width mm
-    const ML = 10;      // margin left
-    const MR = 10;      // margin right
-    const CW = PW - ML - MR;  // content width
+  const PRINT_CSS = `
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size:10px; color:#1a1a2e; background:#fff; }
 
-    // ---- Paleta ----
-    const GREEN      = [34, 120, 56];
-    const GREEN_DARK = [20, 80, 35];
-    const GREEN_LITE = [220, 245, 225];
-    const GRAY_LINE  = [180, 180, 180];
-    const BLACK      = [30, 30, 30];
-    const WHITE      = [255, 255, 255];
-    const BLUE_HEAD  = [25, 60, 130];
+    /* ---- WRAPPER ---- */
+    .doc-wrap { max-width:740px; margin:0 auto; padding:14mm 12mm; }
 
-    // ================================================================
-    // HEADER BLOCK — logo verde izquierda | título derecha
-    // ================================================================
-    const HDR_H = 42;
-    // Fondo verde del logo
-    doc.setFillColor(...GREEN);
-    doc.roundedRect(ML, 8, 80, HDR_H, 3, 3, 'F');
-
-    // Nombre empresa en blanco grande
-    doc.setTextColor(...WHITE);
-    doc.setFontSize(15); doc.setFont('helvetica', 'bold');
-    doc.text(EMPRESA.nombre, ML + 4, 20, { maxWidth: 72 });
-
-    // Icono de casa (usando símbolo unicode o simplemente un rectángulo verde oscuro decorativo)
-    doc.setFillColor(...GREEN_DARK);
-    doc.rect(ML + 58, 10, 20, 16, 'F');
-    doc.setTextColor(...WHITE); doc.setFontSize(12);
-    doc.text('🏠', ML + 62, 21); // símbolo casa
-
-    // Línea blanca separadora dentro del logo
-    doc.setDrawColor(...WHITE);
-    doc.setLineWidth(0.4);
-    doc.line(ML + 4, 27, ML + 76, 27);
-
-    // Datos empresa (zona inferior del bloque verde)
-    doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...WHITE);
-    doc.text(`correo: ${EMPRESA.correo}`,       ML + 4, 32);
-    doc.text(EMPRESA.direccion,                  ML + 4, 37, { maxWidth: 72 });
-    doc.text(`telefono: ${EMPRESA.telefono}`,    ML + 4, 43);
-    doc.text(`RNC: ${EMPRESA.rnc}`,              ML + 4, 47);
-
-    // Contacto en negrita / verde claro
-    doc.setFont('helvetica', 'bold'); doc.setTextColor(180, 255, 180);
-    doc.text(`contacto: ${EMPRESA.contacto}`, ML + 4, 52);
-
-    // ---- Bloque derecho: título COTIZACIÓN ----
-    const TX = ML + 90;  // texto derecho x
-    doc.setTextColor(...BLACK); doc.setFontSize(20); doc.setFont('helvetica', 'bold');
-    doc.text('Cotizacion', TX, 18);
-
-    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-    const rnl = 9; // row line height
-    let ry = 26;
-    doc.text(`No. ${header.numero}`,             TX, ry); ry += rnl - 2;
-    doc.text(`Fecha: ${header.fecha}`,           TX, ry); ry += rnl - 2;
-    doc.text(`Cotizacion valida por ${header.validez || 15} dias.`, TX, ry); ry += rnl;
-    doc.text('',                                 TX, ry); ry += rnl - 4;
-    doc.text(`RNC.`,                             TX, ry); ry += rnl - 2;
-    doc.text(`Cotizado a: ${header.cliente}`,    TX, ry); ry += rnl - 2;
-    doc.text(`Telefono: ${header.telefono || ''}`, TX, ry); ry += rnl - 2;
-    doc.text(`Contacto:`,                        TX, ry); ry += rnl - 2;
-    doc.text(`Direccion: ${header.direccion || 'Santo Domingo D.N.'}`, TX, ry);
-
-    // ================================================================
-    // TABLA DE PRODUCTOS
-    // ================================================================
-    const tableTop = 62;
-
-    // Calcular totales
-    const subtotal = items.reduce((s, it) => s + it.subtotal, 0);
-    const itebis   = subtotal * EMPRESA.itebis;
-    const total    = subtotal + itebis;
-
-    doc.autoTable({
-      startY: tableTop,
-      head: [['NO.', 'DESCRIPCION', 'AREA', 'UN', 'VALOR', 'SUB-TOTAL']],
-      body: [
-        // Filas de productos
-        ...items.map((it, i) => [
-          String.fromCharCode(65 + i),   // A, B, C…
-          it.nombre,
-          it.cant,
-          it.unidad || 'M2',
-          fmt(it.precio),
-          fmt(it.subtotal),
-        ]),
-        // Filas vacías para dar espacio (mínimo 5 filas en total como en la imagen)
-        ...Array(Math.max(0, 4 - items.length)).fill(['', '', '', '', '', '']),
-      ],
-      foot: [
-        ['', '', '', '', 'SUB-TOTAL',    fmt(subtotal)],
-        ['', '', '', '', `ITEBIS ${Math.round(EMPRESA.itebis * 100)}%`, fmt(itebis)],
-        ['', '', '', '', 'TOTAL RDS',   fmt(total)],
-      ],
-      headStyles: {
-        fillColor: WHITE,
-        textColor: BLACK,
-        fontStyle: 'bold',
-        fontSize:  9,
-        lineColor: GRAY_LINE,
-        lineWidth: 0.3,
-      },
-      bodyStyles: {
-        fontSize: 9,
-        textColor: BLACK,
-        lineColor: GRAY_LINE,
-        lineWidth: 0.2,
-      },
-      footStyles: {
-        fillColor: WHITE,
-        textColor: BLACK,
-        fontStyle: 'bold',
-        fontSize:  9,
-        lineColor: GRAY_LINE,
-        lineWidth: 0.2,
-        halign: 'right',
-      },
-      alternateRowStyles: { fillColor: GREEN_LITE },
-      columnStyles: {
-        0: { cellWidth: 12, halign: 'center' },
-        1: { cellWidth: 'auto' },
-        2: { cellWidth: 18, halign: 'center' },
-        3: { cellWidth: 14, halign: 'center' },
-        4: { cellWidth: 28, halign: 'right' },
-        5: { cellWidth: 30, halign: 'right' },
-      },
-      margin: { left: ML, right: MR },
-      tableWidth: CW,
-      // Dibujar borde externo
-      didDrawPage(data) {
-        // borde exterior tabla
-        doc.setDrawColor(...GRAY_LINE); doc.setLineWidth(0.4);
-      },
-      willDrawCell(data) {
-        // Resaltar filas de foot con fondo blanco y texto en negrita derecho
-        if (data.section === 'foot') {
-          doc.setFillColor(255, 255, 255);
-          if (data.row.index === 2) {
-            // TOTAL RDS — destacar
-            doc.setFillColor(220, 245, 225);
-          }
-        }
-      },
-    });
-
-    // ---- Notas / condiciones de pago ----
-    const fy = doc.lastAutoTable.finalY + 6;
-    if (header.notas) {
-      doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(...BLACK);
-      doc.text(`condiciones de pago: ${header.notas}`, ML, fy + 4, { maxWidth: CW });
+    /* ---- HEADER ---- */
+    .doc-header {
+      display:flex; justify-content:space-between; align-items:stretch;
+      margin-bottom:16px; gap:16px;
+      border-bottom:3px solid #22783A; padding-bottom:12px;
     }
 
-    // ---- Pie de página ----
-    doc.setFontSize(7); doc.setFont('helvetica', 'italic'); doc.setTextColor(150, 150, 150);
-    doc.text('Esta cotización es válida por el período indicado. Precios sujetos a cambio sin previo aviso.',
-      PW / 2, 265, { align: 'center' });
+    /* Logo / empresa */
+    .logo-box {
+      background:linear-gradient(135deg,#1a5c30 0%,#22783A 60%,#2d9e4e 100%);
+      color:#fff; border-radius:8px; padding:12px 14px;
+      min-width:200px; max-width:220px; position:relative; overflow:hidden;
+    }
+    .logo-box::after {
+      content:''; position:absolute; bottom:-20px; right:-20px;
+      width:80px; height:80px; border-radius:50%;
+      background:rgba(255,255,255,0.07);
+    }
+    .logo-title { font-size:14px; font-weight:700; line-height:1.25; margin-bottom:6px; padding-right:36px; }
+    .logo-icon {
+      position:absolute; top:8px; right:8px;
+      background:rgba(0,0,0,0.25); border-radius:6px;
+      width:34px; height:30px; display:flex; align-items:center; justify-content:center;
+      font-size:17px;
+    }
+    .logo-sep { border-top:1px solid rgba(255,255,255,0.3); margin:6px 0; }
+    .logo-info { font-size:6.8px; line-height:1.75; opacity:0.9; }
+    .logo-contact { margin-top:5px; font-size:7.5px; font-weight:700; color:#b4ffb4; }
 
-    doc.save(`Cotizacion_${header.numero}_${header.fecha.replace(/\//g, '-')}.pdf`);
+    /* Doc title & meta */
+    .doc-title-area { flex:1; display:flex; flex-direction:column; justify-content:space-between; }
+    .doc-title-row { display:flex; justify-content:space-between; align-items:flex-start; }
+    .doc-type { font-size:26px; font-weight:800; color:#1a5c30; letter-spacing:-1px; line-height:1; }
+    .doc-badge {
+      background:#1a5c30; color:#fff; font-size:8px; font-weight:700;
+      padding:4px 10px; border-radius:20px; letter-spacing:0.08em; align-self:flex-start;
+    }
+    .doc-num-row { display:grid; grid-template-columns:1fr 1fr; gap:4px 16px; font-size:8.5px; margin-top:8px; }
+    .doc-num-row span { color:#555; }
+    .doc-num-row strong { color:#1a1a2e; }
+
+    /* Client block */
+    .client-block {
+      background:#f0faf4; border:1px solid #c8ead4; border-left:4px solid #22783A;
+      border-radius:0 6px 6px 0; padding:8px 12px; margin-top:8px; font-size:8.5px;
+    }
+    .client-block .lbl { color:#22783A; font-weight:700; font-size:7px; text-transform:uppercase; letter-spacing:0.07em; }
+    .client-block .val { color:#1a1a2e; font-size:9px; font-weight:600; margin-top:1px; }
+    .client-grid { display:grid; grid-template-columns:1fr 1fr; gap:4px 14px; margin-top:4px; }
+
+    /* ---- PRODUCTS TABLE ---- */
+    .prod-table { width:100%; border-collapse:collapse; margin-top:12px; font-size:9px; }
+    .prod-table thead tr { background:#1a5c30; color:#fff; }
+    .prod-table th {
+      padding:6px 8px; text-align:left; font-weight:700;
+      font-size:7.5px; text-transform:uppercase; letter-spacing:0.06em;
+    }
+    .prod-table th:not(:first-child):not(:nth-child(2)) { text-align:center; }
+    .prod-table th:last-child, .prod-table th:nth-last-child(2) { text-align:right; }
+
+    .prod-table tbody tr:nth-child(odd)  { background:#f4fdf7; }
+    .prod-table tbody tr:nth-child(even) { background:#fff; }
+    .prod-table tbody tr:hover { background:#e8f7ed; }
+    .prod-table td { padding:6px 8px; border-bottom:1px solid #dff0e4; color:#2a2a2a; }
+    .prod-table td.tc { text-align:center; }
+    .prod-table td.tr { text-align:right; }
+    .prod-table td.no { color:#22783A; font-weight:700; text-align:center; }
+
+    /* ---- TOTALS ---- */
+    .totals-wrap { display:flex; justify-content:space-between; align-items:flex-end; margin-top:14px; gap:16px; }
+    .notes-box { flex:1; font-size:8px; color:#555; line-height:1.65; max-width:55%; }
+    .notes-box strong { color:#1a1a2e; display:block; margin-bottom:2px; font-size:8px; text-transform:uppercase; letter-spacing:0.05em; }
+    .totals-box { min-width:200px; }
+    .totals-box table { width:100%; border-collapse:collapse; }
+    .totals-box td { padding:4px 8px; font-size:9px; }
+    .totals-box .t-lbl { text-align:right; color:#555; }
+    .totals-box .t-val { text-align:right; font-weight:700; color:#1a1a2e; width:90px; border-bottom:1px solid #e0ede5; }
+    .totals-box tr.grand { background:#1a5c30; border-radius:4px; }
+    .totals-box tr.grand td { color:#fff; padding:7px 10px; font-size:10px; font-weight:800; }
+    .totals-box tr.grand .t-lbl { color:rgba(255,255,255,0.85); }
+    .totals-box tr.grand .t-val { color:#fff; border-bottom:none; font-size:11px; }
+
+    /* ---- FOOTER ---- */
+    .doc-footer { margin-top:18px; padding-top:10px; border-top:1px dashed #c8ead4; text-align:center; font-size:7.5px; color:#888; }
+    .doc-footer strong { color:#22783A; }
+
+    @media print {
+      body { background:#fff; }
+      .doc-wrap { padding:10mm 8mm; }
+      @page { margin:0; size:letter; }
+    }
+  `;
+
+  // ================================================================
+  // SHARED HTML BUILDER — logo + header block
+  // ================================================================
+  function buildDocHeader(docType, docBadge, metaFields, clientData) {
+    const E = EMPRESA;
+    const metaRows = metaFields.map(([lbl, val]) =>
+      `<div><span>${lbl}</span> <strong>${val || '—'}</strong></div>`).join('');
+
+    const clientRows = clientData.map(([lbl, val]) => val ? `
+      <div>
+        <div class="lbl">${lbl}</div>
+        <div class="val">${val}</div>
+      </div>` : '').join('');
+
+    return `
+      <div class="doc-header">
+        <div class="logo-box">
+          <div class="logo-title">${E.nombre}</div>
+          <div class="logo-icon">🏠</div>
+          <div class="logo-sep"></div>
+          <div class="logo-info">
+            correo: ${E.correo}<br>
+            ${E.direccion}<br>
+            Tel: ${E.telefono}<br>
+            RNC: ${E.rnc}
+          </div>
+          <div class="logo-contact">Contacto: ${E.contacto}</div>
+        </div>
+        <div class="doc-title-area">
+          <div>
+            <div class="doc-title-row">
+              <div class="doc-type">${docType}</div>
+              <div class="doc-badge">${docBadge}</div>
+            </div>
+            <div class="doc-num-row">${metaRows}</div>
+          </div>
+          <div class="client-block">
+            <div class="client-grid">${clientRows}</div>
+          </div>
+        </div>
+      </div>`;
   }
 
   // ================================================================
-  // PRINT: Cotización (ventana de impresión del navegador)
+  // PRINT: Factura de venta — CORREGIDO (cliente + ITBIS condicional)
+  // ================================================================
+  function printVenta(inv) {
+    // ✅ ITBIS condicional — usa el flag del documento
+    const conItbis  = inv.conItbis !== undefined ? inv.conItbis : true;
+    const itebisAmt = conItbis ? inv.total * EMPRESA.itebis : 0;
+    const totalRDS  = inv.total + itebisAmt;
+
+    const header = buildDocHeader(
+      'Factura',
+      'ORIGINAL',
+      [
+        ['No.', inv.id],
+        ['Fecha:', inv.fecha],
+        ['Hora:', inv.hora],
+        ['RNC:', ''],
+      ],
+      [
+        // ✅ Datos del cliente — correctamente propagados
+        ['Cliente', inv.cliente],
+        ['Teléfono', inv.telefono || ''],
+        ['Contacto', inv.contacto || ''],
+        ['Dirección', inv.direccion || ''],
+      ]
+    );
+
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Factura ${inv.id}</title>
+<style>${PRINT_CSS}</style>
+</head>
+<body>
+<div class="doc-wrap">
+  ${header}
+
+  <table class="prod-table">
+    <thead>
+      <tr>
+        <th style="width:32px">No.</th>
+        <th>Descripción</th>
+        <th style="width:50px">Cant.</th>
+        <th style="width:90px">P. Unitario</th>
+        <th style="width:90px">Subtotal</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="no">A</td>
+        <td>${inv.producto}${inv.codigo ? ` <span style="color:#888;font-size:8px;">(${inv.codigo})</span>` : ''}</td>
+        <td class="tc">${inv.cantidad}</td>
+        <td class="tr">${fmt(inv.precio)}</td>
+        <td class="tr">${fmt(inv.total)}</td>
+      </tr>
+      <tr><td colspan="5" style="height:18px;border-bottom:1px solid #dff0e4;"></td></tr>
+      <tr><td colspan="5" style="height:18px;border-bottom:1px solid #dff0e4;"></td></tr>
+    </tbody>
+  </table>
+
+  <div class="totals-wrap">
+    <div class="notes-box">
+      ${inv.notas ? `<strong>Condiciones</strong>${inv.notas}` : '<strong>Gracias por su preferencia</strong>'}
+    </div>
+    <div class="totals-box">
+      <table>
+        <tr>
+          <td class="t-lbl">Subtotal</td>
+          <td class="t-val">${fmt(inv.total)}</td>
+        </tr>
+        ${conItbis ? `<tr>
+          <td class="t-lbl">ITBIS ${Math.round(EMPRESA.itebis * 100)}%</td>
+          <td class="t-val">${fmt(itebisAmt)}</td>
+        </tr>` : `<tr>
+          <td class="t-lbl" style="font-size:7.5px;color:#aaa;">Sin ITBIS</td>
+          <td class="t-val" style="color:#aaa;">—</td>
+        </tr>`}
+        <tr class="grand">
+          <td class="t-lbl">Total RDS</td>
+          <td class="t-val">${fmt(totalRDS)}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="doc-footer">
+    <strong>${EMPRESA.nombre}</strong> &bull; ${EMPRESA.correo} &bull; Tel: ${EMPRESA.telefono} &bull; RNC: ${EMPRESA.rnc}
+  </div>
+</div>
+<script>window.onload=function(){ window.print(); window.onafterprint=function(){ window.close(); }; }<\/script>
+</body></html>`;
+
+    const w = window.open('', '_blank', 'width=900,height=750');
+    w.document.write(html);
+    w.document.close();
+  }
+
+  // ================================================================
+  // PRINT: Cotización — CORREGIDO (cliente + ITBIS condicional)
   // ================================================================
   function printCotizacion(header, items) {
-    const subtotal = items.reduce((s, it) => s + it.subtotal, 0);
-    const itebis   = subtotal * EMPRESA.itebis;
-    const total    = subtotal + itebis;
+    // ✅ ITBIS condicional
+    const subtotal  = header.subtotal !== undefined ? header.subtotal : items.reduce((s, it) => s + it.subtotal, 0);
+    const conItbis  = header.conItbis !== false;
+    const itebis    = conItbis ? subtotal * EMPRESA.itebis : 0;
+    const total     = subtotal + itebis;
 
     const itemRows = items.map((it, i) => `
       <tr>
-        <td class="tc">${String.fromCharCode(65 + i)}</td>
+        <td class="no">${String.fromCharCode(65 + i)}</td>
         <td>${it.nombre}</td>
         <td class="tc">${it.cant}</td>
         <td class="tc">${it.unidad || 'M2'}</td>
@@ -244,342 +311,289 @@ const Utils = (() => {
         <td class="tr">${fmt(it.subtotal)}</td>
       </tr>`).join('');
 
-    const emptyRows = Array(Math.max(0, 4 - items.length))
-      .fill('<tr><td></td><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>').join('');
+    const empties = Array(Math.max(0, 4 - items.length))
+      .fill('<tr><td class="no"></td><td style="height:18px;"></td><td></td><td></td><td></td><td></td></tr>')
+      .join('');
+
+    // ✅ Datos del cliente correctamente propagados
+    const docHeader = buildDocHeader(
+      'Cotización',
+      'COTIZACIÓN',
+      [
+        ['No.', header.numero],
+        ['Fecha:', header.fecha],
+        ['Válida:', `${header.validez || 15} días`],
+        ['RNC:', ''],
+      ],
+      [
+        ['Cotizado a', header.cliente],
+        ['Teléfono', header.telefono || ''],
+        ['Email', header.email || ''],
+        ['Dirección', header.direccion || 'Santo Domingo D.N.'],
+      ]
+    );
 
     const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <title>Cotización ${header.numero}</title>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: Arial, sans-serif; font-size: 10px; color: #1e1e1e; padding: 12mm; }
-
-  /* ---- HEADER ---- */
-  .doc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-
-  .logo-box {
-    background: #22783A; color: white; border-radius: 6px;
-    padding: 8px 10px; width: 200px; position: relative;
-  }
-  .logo-title { font-size: 15px; font-weight: bold; line-height: 1.2; margin-bottom: 4px; }
-  .logo-house {
-    position: absolute; top: 6px; right: 6px;
-    background: #145023; border-radius: 4px;
-    width: 36px; height: 28px; display: flex; align-items: center; justify-content: center;
-    font-size: 18px;
-  }
-  .logo-sep { border-top: 1px solid rgba(255,255,255,0.5); margin: 4px 0; }
-  .logo-info { font-size: 7px; line-height: 1.65; }
-  .logo-contact { color: #b4ffb4; font-weight: bold; margin-top: 2px; font-size: 7.5px; }
-
-  .doc-title-box { text-align: left; min-width: 220px; padding-left: 20px; }
-  .doc-title { font-size: 22px; font-weight: bold; margin-bottom: 4px; }
-  .doc-meta { font-size: 9px; line-height: 1.7; }
-
-  /* ---- TABLE ---- */
-  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9px; }
-  thead th {
-    border: 1px solid #bbb; padding: 4px 6px; font-weight: bold;
-    background: white; text-transform: uppercase; font-size: 8.5px;
-  }
-  tbody td { border: 1px solid #bbb; padding: 4px 6px; }
-  tbody tr:nth-child(odd)  { background: #dcf5e1; }
-  tbody tr:nth-child(even) { background: white; }
-
-  tfoot td { border: 0; padding: 3px 6px; }
-  .tfoot-label { text-align: right; font-weight: bold; padding-right: 4px; }
-  .tfoot-value { border: 1px solid #bbb; text-align: right; font-weight: bold; min-width: 80px; }
-  .tfoot-total { background: #dcf5e1; }
-
-  .tc { text-align: center; }
-  .tr { text-align: right; }
-
-  /* ---- FOOTER NOTE ---- */
-  .conditions { margin-top: 6px; font-size: 8.5px; }
-
-  @media print {
-    body { padding: 8mm; }
-    @page { margin: 0; }
-  }
-</style>
+<style>${PRINT_CSS}</style>
 </head>
 <body>
+<div class="doc-wrap">
+  ${docHeader}
 
-<div class="doc-header">
-  <div class="logo-box">
-    <div class="logo-title">${EMPRESA.nombre}</div>
-    <div class="logo-house">🏠</div>
-    <div class="logo-sep"></div>
-    <div class="logo-info">
-      correo: ${EMPRESA.correo}<br>
-      ${EMPRESA.direccion}<br>
-      telefono: ${EMPRESA.telefono}<br>
-      RNC: ${EMPRESA.rnc}
+  <table class="prod-table">
+    <thead>
+      <tr>
+        <th style="width:32px">No.</th>
+        <th>Descripción</th>
+        <th style="width:50px">Área</th>
+        <th style="width:38px">UN</th>
+        <th style="width:90px">Valor</th>
+        <th style="width:90px">Subtotal</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${itemRows}
+      ${empties}
+    </tbody>
+  </table>
+
+  <div class="totals-wrap">
+    <div class="notes-box">
+      ${header.notas ? `<strong>Condiciones de Pago</strong>${header.notas}` : '<strong>Precios sujetos a cambio sin previo aviso.</strong>'}
     </div>
-    <div class="logo-contact">contacto: ${EMPRESA.contacto}</div>
+    <div class="totals-box">
+      <table>
+        <tr>
+          <td class="t-lbl">Subtotal</td>
+          <td class="t-val">${fmt(subtotal)}</td>
+        </tr>
+        ${conItbis ? `<tr>
+          <td class="t-lbl">ITBIS ${Math.round(EMPRESA.itebis * 100)}%</td>
+          <td class="t-val">${fmt(itebis)}</td>
+        </tr>` : `<tr>
+          <td class="t-lbl" style="font-size:7.5px;color:#aaa;">Sin ITBIS</td>
+          <td class="t-val" style="color:#aaa;">—</td>
+        </tr>`}
+        <tr class="grand">
+          <td class="t-lbl">Total RDS</td>
+          <td class="t-val">${fmt(total)}</td>
+        </tr>
+      </table>
+    </div>
   </div>
 
-  <div class="doc-title-box">
-    <div class="doc-title">Cotizacion</div>
-    <div class="doc-meta">
-      No. ${header.numero}<br>
-      Fecha: ${header.fecha}<br>
-      Cotizacion valida por ${header.validez || 15} dias.<br>
-      <br>
-      RNC.<br>
-      Cotizado a: ${header.cliente}<br>
-      Telefono: ${header.telefono || ''}<br>
-      Contacto:<br>
-      Direccion: ${header.direccion || 'Santo Domingo D.N.'}
-    </div>
+  <div class="doc-footer">
+    <strong>${EMPRESA.nombre}</strong> &bull; ${EMPRESA.correo} &bull; Tel: ${EMPRESA.telefono} &bull; RNC: ${EMPRESA.rnc}<br>
+    Esta cotización es válida por ${header.validez || 15} días a partir de la fecha de emisión.
   </div>
 </div>
-
-<table>
-  <thead>
-    <tr>
-      <th style="width:32px">NO.</th>
-      <th>DESCRIPCION</th>
-      <th style="width:42px">AREA</th>
-      <th style="width:38px">UN</th>
-      <th style="width:70px">VALOR</th>
-      <th style="width:80px">SUB-TOTAL</th>
-    </tr>
-  </thead>
-  <tbody>
-    ${itemRows}
-    ${emptyRows}
-    <tr><td colspan="4" class="conditions">${header.notas ? `condiciones de pago: ${header.notas}` : ''}</td>
-      <td class="tfoot-label">SUB-TOTAL</td>
-      <td class="tfoot-value">${fmt(subtotal)}</td>
-    </tr>
-    <tr><td colspan="4"></td>
-      <td class="tfoot-label">ITEBIS ${Math.round(EMPRESA.itebis * 100)}%</td>
-      <td class="tfoot-value">${fmt(itebis)}</td>
-    </tr>
-    <tr><td colspan="4"></td>
-      <td class="tfoot-label tfoot-total">TOTAL RDS</td>
-      <td class="tfoot-value tfoot-total">${fmt(total)}</td>
-    </tr>
-  </tbody>
-</table>
-
 <script>window.onload=function(){ window.print(); window.onafterprint=function(){ window.close(); }; }<\/script>
 </body></html>`;
 
-    const w = window.open('', '_blank', 'width=900,height=700');
+    const w = window.open('', '_blank', 'width=900,height=750');
     w.document.write(html);
     w.document.close();
   }
 
   // ================================================================
-  // PRINT: Factura de venta
+  // PDF: COTIZACIÓN — CORREGIDO (ITBIS condicional + cliente)
   // ================================================================
-  function printVenta(inv) {
-    const html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>Factura ${inv.id}</title>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: Arial, sans-serif; font-size: 10px; color: #1e1e1e; padding: 12mm; }
+  function generateCotizacionPDF(header, items) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+    const PW = 215.9; const ML = 12; const MR = 12; const CW = PW - ML - MR;
 
-  .doc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+    const G1 = [26, 92, 48]; const G2 = [34, 120, 56]; const G3 = [220, 245, 225];
+    const GRAY = [180, 180, 180]; const BLACK = [26, 26, 46]; const WHITE = [255, 255, 255];
 
-  .logo-box {
-    background: #22783A; color: white; border-radius: 6px;
-    padding: 8px 10px; width: 200px; position: relative;
-  }
-  .logo-title { font-size: 15px; font-weight: bold; line-height: 1.2; margin-bottom: 4px; }
-  .logo-house {
-    position: absolute; top: 6px; right: 6px;
-    background: #145023; border-radius: 4px;
-    width: 36px; height: 28px; display: flex; align-items: center; justify-content: center;
-    font-size: 18px;
-  }
-  .logo-sep { border-top: 1px solid rgba(255,255,255,0.5); margin: 4px 0; }
-  .logo-info { font-size: 7px; line-height: 1.65; }
-  .logo-contact { color: #b4ffb4; font-weight: bold; margin-top: 2px; font-size: 7.5px; }
+    // Header verde
+    doc.setFillColor(...G1); doc.rect(0, 0, PW, 36, 'F');
+    doc.setFillColor(255, 255, 255, 0.05);
 
-  .doc-title-box { text-align: left; min-width: 220px; padding-left: 20px; }
-  .doc-title { font-size: 22px; font-weight: bold; margin-bottom: 4px; }
-  .doc-meta { font-size: 9px; line-height: 1.7; }
+    // Logo box
+    doc.setFillColor(...G2); doc.roundedRect(ML, 4, 84, 28, 3, 3, 'F');
+    doc.setTextColor(...WHITE); doc.setFontSize(13); doc.setFont('helvetica', 'bold');
+    doc.text(EMPRESA.nombre, ML + 4, 13, { maxWidth: 76 });
+    doc.setDrawColor(...WHITE); doc.setLineWidth(0.3);
+    doc.line(ML + 4, 17, ML + 80, 17);
+    doc.setFontSize(6); doc.setFont('helvetica', 'normal');
+    doc.text(`Tel: ${EMPRESA.telefono}  |  RNC: ${EMPRESA.rnc}`, ML + 4, 21);
+    doc.text(EMPRESA.correo, ML + 4, 26);
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(180, 255, 180);
+    doc.text(`Contacto: ${EMPRESA.contacto}`, ML + 4, 31);
 
-  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9px; }
-  thead th { border: 1px solid #bbb; padding: 4px 6px; font-weight: bold; background: white; text-transform: uppercase; }
-  tbody td { border: 1px solid #bbb; padding: 4px 6px; }
-  tbody tr:nth-child(odd) { background: #dcf5e1; }
+    // Título
+    doc.setTextColor(...WHITE); doc.setFontSize(22); doc.setFont('helvetica', 'bold');
+    doc.text('Cotización', ML + 96, 18);
+    doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+    doc.text(`No. ${header.numero}  |  Fecha: ${header.fecha}  |  Válida: ${header.validez || 15} días`, ML + 96, 26);
 
-  .tfoot-label { text-align: right; font-weight: bold; padding-right: 4px; }
-  .tfoot-value { border: 1px solid #bbb; text-align: right; font-weight: bold; min-width: 80px; }
-  .tfoot-total { background: #dcf5e1; }
-  .tc { text-align: center; }
-  .tr { text-align: right; }
+    // ✅ Bloque cliente — datos correctamente mostrados
+    const subtotal  = header.subtotal !== undefined ? header.subtotal : items.reduce((s, it) => s + it.subtotal, 0);
+    const conItbis  = header.conItbis !== false;
+    const itebis    = conItbis ? subtotal * EMPRESA.itebis : 0;
+    const total     = subtotal + itebis;
 
-  @media print { body { padding: 8mm; } @page { margin: 0; } }
-</style>
-</head>
-<body>
+    doc.setFillColor(240, 250, 244);
+    doc.rect(ML, 40, CW, 18, 'F');
+    doc.setDrawColor(...G2); doc.setLineWidth(0.5);
+    doc.line(ML, 40, ML, 58);
+    doc.setTextColor(...BLACK); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+    doc.text('CLIENTE', ML + 3, 45);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    doc.text(header.cliente || '—', ML + 3, 51);
+    doc.setFontSize(7); doc.setTextColor(80, 80, 80);
+    if (header.telefono) doc.text(`Tel: ${header.telefono}`, ML + 3, 56);
+    if (header.email) doc.text(`Email: ${header.email}`, ML + 70, 56);
+    doc.text(`Dirección: ${header.direccion || 'Santo Domingo D.N.'}`, ML + 3, 60);
 
-<div class="doc-header">
-  <div class="logo-box">
-    <div class="logo-title">${EMPRESA.nombre}</div>
-    <div class="logo-house">🏠</div>
-    <div class="logo-sep"></div>
-    <div class="logo-info">
-      correo: ${EMPRESA.correo}<br>
-      ${EMPRESA.direccion}<br>
-      telefono: ${EMPRESA.telefono}<br>
-      RNC: ${EMPRESA.rnc}
-    </div>
-    <div class="logo-contact">contacto: ${EMPRESA.contacto}</div>
-  </div>
+    // Tabla
+    doc.autoTable({
+      startY: 65,
+      head: [['No.', 'Descripción', 'Área', 'UN', 'Valor', 'Subtotal']],
+      body: [
+        ...items.map((it, i) => [String.fromCharCode(65 + i), it.nombre, it.cant, it.unidad || 'M2', fmt(it.precio), fmt(it.subtotal)]),
+        ...Array(Math.max(0, 4 - items.length)).fill(['', '', '', '', '', '']),
+      ],
+      foot: (() => {
+        const rows = [['', '', '', '', 'Subtotal', fmt(subtotal)]];
+        if (conItbis) rows.push(['', '', '', '', `ITBIS ${Math.round(EMPRESA.itebis * 100)}%`, fmt(itebis)]);
+        rows.push(['', '', '', '', 'TOTAL RDS', fmt(total)]);
+        return rows;
+      })(),
+      headStyles: { fillColor: G1, textColor: WHITE, fontStyle: 'bold', fontSize: 8, lineWidth: 0 },
+      bodyStyles: { fontSize: 8.5, textColor: BLACK, lineColor: [220, 240, 225], lineWidth: 0.2 },
+      footStyles: { fillColor: WHITE, textColor: BLACK, fontStyle: 'bold', fontSize: 8.5, lineWidth: 0.2, halign: 'right' },
+      alternateRowStyles: { fillColor: G3 },
+      columnStyles: { 0: { cellWidth: 12, halign: 'center' }, 2: { cellWidth: 16, halign: 'center' }, 3: { cellWidth: 14, halign: 'center' }, 4: { cellWidth: 30, halign: 'right' }, 5: { cellWidth: 32, halign: 'right' } },
+      margin: { left: ML, right: MR }, tableWidth: CW,
+      willDrawCell(data) {
+        if (data.section === 'foot') {
+          const isLast = data.row.index === (conItbis ? 2 : 1);
+          if (isLast) doc.setFillColor(...G3);
+        }
+      },
+    });
 
-  <div class="doc-title-box">
-    <div class="doc-title">Factura</div>
-    <div class="doc-meta">
-      No. ${inv.id}<br>
-      Fecha: ${inv.fecha}<br>
-      Hora: ${inv.hora}<br>
-      <br>
-      RNC.<br>
-      Cliente: ${inv.cliente}<br>
-      Telefono:<br>
-      Contacto:<br>
-      Direccion:
-    </div>
-  </div>
-</div>
+    const fy = doc.lastAutoTable.finalY + 8;
+    if (header.notas) {
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...BLACK);
+      doc.text('Condiciones de pago:', ML, fy);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(80, 80, 80);
+      doc.text(header.notas, ML, fy + 5, { maxWidth: CW });
+    }
 
-<table>
-  <thead>
-    <tr>
-      <th style="width:32px">NO.</th>
-      <th>DESCRIPCION</th>
-      <th style="width:42px">CANT.</th>
-      <th style="width:70px">P. UNITARIO</th>
-      <th style="width:80px">SUB-TOTAL</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td class="tc">A</td>
-      <td>${inv.producto} (${inv.codigo})</td>
-      <td class="tc">${inv.cantidad}</td>
-      <td class="tr">${fmt(inv.precio)}</td>
-      <td class="tr">${fmt(inv.total)}</td>
-    </tr>
-    <tr><td colspan="3"></td>
-      <td class="tfoot-label">SUB-TOTAL</td>
-      <td class="tfoot-value">${fmt(inv.total)}</td>
-    </tr>
-    <tr><td colspan="3"></td>
-      <td class="tfoot-label">ITEBIS ${Math.round(EMPRESA.itebis * 100)}%</td>
-      <td class="tfoot-value">${fmt(inv.total * EMPRESA.itebis)}</td>
-    </tr>
-    <tr><td colspan="3"></td>
-      <td class="tfoot-label tfoot-total">TOTAL RDS</td>
-      <td class="tfoot-value tfoot-total">${fmt(inv.total * (1 + EMPRESA.itebis))}</td>
-    </tr>
-  </tbody>
-</table>
+    doc.setFontSize(7); doc.setFont('helvetica', 'italic'); doc.setTextColor(140, 140, 140);
+    doc.text(`${EMPRESA.nombre}  ·  ${EMPRESA.correo}  ·  Tel: ${EMPRESA.telefono}  ·  RNC: ${EMPRESA.rnc}`, PW / 2, 258, { align: 'center' });
+    doc.text('Esta cotización es válida por el período indicado. Precios sujetos a cambio sin previo aviso.', PW / 2, 263, { align: 'center' });
 
-<script>window.onload=function(){ window.print(); window.onafterprint=function(){ window.close(); }; }<\/script>
-</body></html>`;
-
-    const w = window.open('', '_blank', 'width=900,height=700');
-    w.document.write(html);
-    w.document.close();
+    doc.save(`Cotizacion_${header.numero}_${header.fecha.replace(/\//g, '-')}.pdf`);
   }
 
   // ================================================================
-  // PDF: Factura de venta
+  // PDF: Factura — CORREGIDO (cliente + ITBIS condicional)
   // ================================================================
   function generateVentaPDF(inv) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'letter' });
-    const PW = 215.9; const ML = 10; const MR = 10; const CW = PW - ML - MR;
-    const GREEN = [34, 120, 56]; const GREEN_DARK = [20, 80, 35];
-    const GREEN_LITE = [220, 245, 225]; const GRAY_LINE = [180, 180, 180];
-    const BLACK = [30, 30, 30]; const WHITE = [255, 255, 255];
+    const PW = 215.9; const ML = 12; const MR = 12; const CW = PW - ML - MR;
 
-    const HDR_H = 42;
-    doc.setFillColor(...GREEN); doc.roundedRect(ML, 8, 80, HDR_H, 3, 3, 'F');
-    doc.setTextColor(...WHITE); doc.setFontSize(15); doc.setFont('helvetica', 'bold');
-    doc.text(EMPRESA.nombre, ML + 4, 20, { maxWidth: 72 });
-    doc.setFillColor(...GREEN_DARK); doc.rect(ML + 58, 10, 20, 16, 'F');
-    doc.setTextColor(...WHITE); doc.setFontSize(12); doc.text('🏠', ML + 62, 21);
-    doc.setDrawColor(...WHITE); doc.setLineWidth(0.4); doc.line(ML + 4, 27, ML + 76, 27);
-    doc.setFontSize(6.5); doc.setFont('helvetica', 'normal');
-    doc.text(`correo: ${EMPRESA.correo}`,    ML + 4, 32);
-    doc.text(EMPRESA.direccion,               ML + 4, 37, { maxWidth: 72 });
-    doc.text(`telefono: ${EMPRESA.telefono}`, ML + 4, 43);
-    doc.text(`RNC: ${EMPRESA.rnc}`,           ML + 4, 47);
-    doc.setFont('helvetica', 'bold'); doc.setTextColor(180, 255, 180);
-    doc.text(`contacto: ${EMPRESA.contacto}`, ML + 4, 52);
+    const G1 = [26, 92, 48]; const G2 = [34, 120, 56]; const G3 = [220, 245, 225];
+    const GRAY = [180, 180, 180]; const BLACK = [26, 26, 46]; const WHITE = [255, 255, 255];
 
-    const TX = ML + 90;
-    doc.setTextColor(...BLACK); doc.setFontSize(20); doc.setFont('helvetica', 'bold');
-    doc.text('Factura', TX, 18);
-    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-    let ry = 26;
-    doc.text(`No. ${inv.id}`,         TX, ry); ry += 7;
-    doc.text(`Fecha: ${inv.fecha}`,   TX, ry); ry += 7;
-    doc.text(`Hora: ${inv.hora}`,     TX, ry); ry += 9;
-    doc.text('RNC.',                  TX, ry); ry += 7;
-    doc.text(`Cliente: ${inv.cliente}`, TX, ry); ry += 7;
-    doc.text('Telefono:',             TX, ry); ry += 7;
-    doc.text('Contacto:',             TX, ry); ry += 7;
-    doc.text('Direccion:',            TX, ry);
-
-    const itebisAmt = inv.total * EMPRESA.itebis;
+    // ✅ ITBIS condicional
+    const conItbis  = inv.conItbis !== undefined ? inv.conItbis : true;
+    const itebisAmt = conItbis ? inv.total * EMPRESA.itebis : 0;
     const totalRDS  = inv.total + itebisAmt;
 
+    // Header verde
+    doc.setFillColor(...G1); doc.rect(0, 0, PW, 36, 'F');
+    doc.setFillColor(...G2); doc.roundedRect(ML, 4, 84, 28, 3, 3, 'F');
+    doc.setTextColor(...WHITE); doc.setFontSize(13); doc.setFont('helvetica', 'bold');
+    doc.text(EMPRESA.nombre, ML + 4, 13, { maxWidth: 76 });
+    doc.setDrawColor(...WHITE); doc.setLineWidth(0.3); doc.line(ML + 4, 17, ML + 80, 17);
+    doc.setFontSize(6); doc.setFont('helvetica', 'normal');
+    doc.text(`Tel: ${EMPRESA.telefono}  |  RNC: ${EMPRESA.rnc}`, ML + 4, 21);
+    doc.text(EMPRESA.correo, ML + 4, 26);
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(180, 255, 180);
+    doc.text(`Contacto: ${EMPRESA.contacto}`, ML + 4, 31);
+
+    doc.setTextColor(...WHITE); doc.setFontSize(22); doc.setFont('helvetica', 'bold');
+    doc.text('Factura', ML + 96, 18);
+    doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+    doc.text(`No. ${inv.id}  |  Fecha: ${inv.fecha}  |  Hora: ${inv.hora}`, ML + 96, 26);
+
+    // ✅ Bloque cliente — datos correctamente mostrados
+    doc.setFillColor(240, 250, 244);
+    doc.rect(ML, 40, CW, 18, 'F');
+    doc.setDrawColor(...G2); doc.setLineWidth(0.5);
+    doc.line(ML, 40, ML, 58);
+    doc.setTextColor(...BLACK); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+    doc.text('CLIENTE', ML + 3, 45);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    doc.text(inv.cliente || '—', ML + 3, 51);
+    doc.setFontSize(7); doc.setTextColor(80, 80, 80);
+    if (inv.telefono) doc.text(`Tel: ${inv.telefono}`, ML + 3, 56);
+    if (inv.contacto) doc.text(`Contacto: ${inv.contacto}`, ML + 70, 51);
+    if (inv.direccion) doc.text(`Dirección: ${inv.direccion}`, ML + 3, 60);
+
+    const footRows = [['', '', '', 'Subtotal', fmt(inv.total)]];
+    if (conItbis) footRows.push(['', '', '', `ITBIS ${Math.round(EMPRESA.itebis * 100)}%`, fmt(itebisAmt)]);
+    footRows.push(['', '', '', 'TOTAL RDS', fmt(totalRDS)]);
+
     doc.autoTable({
-      startY: 62,
-      head: [['NO.', 'DESCRIPCION', 'CANT.', 'P. UNITARIO', 'SUB-TOTAL']],
+      startY: 65,
+      head: [['No.', 'Descripción', 'Cant.', 'P. Unitario', 'Subtotal']],
       body: [
-        ['A', `${inv.producto} (${inv.codigo})`, inv.cantidad, fmt(inv.precio), fmt(inv.total)],
+        ['A', `${inv.producto}${inv.codigo ? ` (${inv.codigo})` : ''}`, inv.cantidad, fmt(inv.precio), fmt(inv.total)],
         ...Array(3).fill(['', '', '', '', '']),
       ],
-      foot: [
-        ['', '', '', 'SUB-TOTAL', fmt(inv.total)],
-        ['', '', '', `ITEBIS ${Math.round(EMPRESA.itebis*100)}%`, fmt(itebisAmt)],
-        ['', '', '', 'TOTAL RDS', fmt(totalRDS)],
-      ],
-      headStyles: { fillColor: WHITE, textColor: BLACK, fontStyle: 'bold', fontSize: 9, lineColor: GRAY_LINE, lineWidth: 0.3 },
-      bodyStyles: { fontSize: 9, textColor: BLACK, lineColor: GRAY_LINE, lineWidth: 0.2 },
-      footStyles: { fillColor: WHITE, textColor: BLACK, fontStyle: 'bold', fontSize: 9, lineColor: GRAY_LINE, lineWidth: 0.2, halign: 'right' },
-      alternateRowStyles: { fillColor: GREEN_LITE },
-      columnStyles: { 0: { cellWidth: 12, halign: 'center' }, 2: { cellWidth: 18, halign: 'center' }, 3: { cellWidth: 32, halign: 'right' }, 4: { cellWidth: 32, halign: 'right' } },
+      foot: footRows,
+      headStyles: { fillColor: G1, textColor: WHITE, fontStyle: 'bold', fontSize: 8, lineWidth: 0 },
+      bodyStyles: { fontSize: 8.5, textColor: BLACK, lineColor: [220, 240, 225], lineWidth: 0.2 },
+      footStyles: { fillColor: WHITE, textColor: BLACK, fontStyle: 'bold', fontSize: 8.5, lineWidth: 0.2, halign: 'right' },
+      alternateRowStyles: { fillColor: G3 },
+      columnStyles: { 0: { cellWidth: 12, halign: 'center' }, 2: { cellWidth: 18, halign: 'center' }, 3: { cellWidth: 36, halign: 'right' }, 4: { cellWidth: 36, halign: 'right' } },
       margin: { left: ML, right: MR }, tableWidth: CW,
-      willDrawCell(data) { if (data.section === 'foot' && data.row.index === 2) doc.setFillColor(...GREEN_LITE); },
+      willDrawCell(data) {
+        if (data.section === 'foot') {
+          const isLast = data.row.index === footRows.length - 1;
+          if (isLast) doc.setFillColor(...G3);
+        }
+      },
     });
 
-    doc.setFontSize(7); doc.setFont('helvetica', 'italic'); doc.setTextColor(150, 150, 150);
-    doc.text('Gracias por su compra.', PW / 2, 265, { align: 'center' });
+    doc.setFontSize(7); doc.setFont('helvetica', 'italic'); doc.setTextColor(140, 140, 140);
+    doc.text(`${EMPRESA.nombre}  ·  ${EMPRESA.correo}  ·  Tel: ${EMPRESA.telefono}  ·  RNC: ${EMPRESA.rnc}`, PW / 2, 258, { align: 'center' });
+    doc.text('Gracias por su compra.', PW / 2, 263, { align: 'center' });
+
     doc.save(`Factura_${inv.id}_${inv.fecha.replace(/\//g, '-')}.pdf`);
   }
 
   // ================================================================
-  // Excel: Factura de venta
+  // Excel: Factura
   // ================================================================
   function generateVentaExcel(inv) {
+    const conItbis  = inv.conItbis !== undefined ? inv.conItbis : true;
+    const itebisAmt = conItbis ? inv.total * EMPRESA.itebis : 0;
+    const totalRDS  = inv.total + itebisAmt;
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([
+    const rows = [
       ['FACTURA DE VENTA', '', '', '', ''], [],
       ['Empresa:', EMPRESA.nombre, '', 'Fecha:', inv.fecha],
       ['N° Factura:', inv.id, '', 'Hora:', inv.hora],
-      ['Cliente:', inv.cliente, '', '', ''], [],
+      ['Cliente:', inv.cliente || '—', '', '', ''], [],   // ✅ cliente incluido
       ['NO.', 'DESCRIPCION', 'CANTIDAD', 'P. UNITARIO', 'SUB-TOTAL'],
-      ['A', `${inv.producto} (${inv.codigo})`, inv.cantidad, inv.precio, inv.total], [],
+      ['A', `${inv.producto}${inv.codigo ? ` (${inv.codigo})` : ''}`, inv.cantidad, inv.precio, inv.total], [],
       ['', '', '', 'SUB-TOTAL', inv.total],
-      ['', '', '', `ITEBIS ${Math.round(EMPRESA.itebis*100)}%`, inv.total * EMPRESA.itebis],
-      ['', '', '', 'TOTAL RDS', inv.total * (1 + EMPRESA.itebis)],
-    ]);
+    ];
+    if (conItbis) rows.push(['', '', '', `ITBIS ${Math.round(EMPRESA.itebis * 100)}%`, itebisAmt]);
+    rows.push(['', '', '', 'TOTAL RDS', totalRDS]);
+    const ws = XLSX.utils.aoa_to_sheet(rows);
     ws['!cols'] = [{ wch: 8 }, { wch: 30 }, { wch: 10 }, { wch: 18 }, { wch: 18 }];
     XLSX.utils.book_append_sheet(wb, ws, 'Factura');
     XLSX.writeFile(wb, `Factura_${inv.id}_${inv.fecha.replace(/\//g, '-')}.xlsx`);
@@ -589,21 +603,22 @@ const Utils = (() => {
   // Excel: Cotización
   // ================================================================
   function generateCotizacionExcel(header, items) {
-    const subtotal = items.reduce((s, it) => s + it.subtotal, 0);
-    const itebis   = subtotal * EMPRESA.itebis;
-    const total    = subtotal + itebis;
+    const subtotal  = header.subtotal !== undefined ? header.subtotal : items.reduce((s, it) => s + it.subtotal, 0);
+    const conItbis  = header.conItbis !== false;
+    const itebis    = conItbis ? subtotal * EMPRESA.itebis : 0;
+    const total     = subtotal + itebis;
     const wb = XLSX.utils.book_new();
     const wsData = [
       ['COTIZACIÓN', '', '', '', '', ''], [],
       ['No. Cotización:', header.numero, '', 'Fecha:', header.fecha, ''],
-      ['Cliente:', header.cliente, '', 'Validez:', `${header.validez || 15} días`, ''],
+      ['Cliente:', header.cliente || '—', '', 'Validez:', `${header.validez || 15} días`, ''],   // ✅ cliente
       ['Teléfono:', header.telefono || '', '', 'Dirección:', header.direccion || 'Santo Domingo D.N.', ''], [],
       ['NO.', 'DESCRIPCION', 'AREA', 'UN', 'VALOR', 'SUB-TOTAL'],
       ...items.map((it, i) => [String.fromCharCode(65 + i), it.nombre, it.cant, it.unidad || 'M2', it.precio, it.subtotal]), [],
       ['', '', '', '', 'SUB-TOTAL', subtotal],
-      ['', '', '', '', `ITEBIS ${Math.round(EMPRESA.itebis * 100)}%`, itebis],
-      ['', '', '', '', 'TOTAL RDS', total],
     ];
+    if (conItbis) wsData.push(['', '', '', '', `ITBIS ${Math.round(EMPRESA.itebis * 100)}%`, itebis]);
+    wsData.push(['', '', '', '', 'TOTAL RDS', total]);
     if (header.notas) { wsData.push([]); wsData.push([`Condiciones de pago: ${header.notas}`]); }
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     ws['!cols'] = [{ wch: 8 }, { wch: 32 }, { wch: 10 }, { wch: 8 }, { wch: 18 }, { wch: 18 }];
@@ -624,14 +639,10 @@ const Utils = (() => {
     XLSX.writeFile(wb, `Resumen_${type}_${today().replace(/\//g, '-')}.xlsx`);
   }
 
-  // Public API
   return {
-    gen7DigitId,
-    EMPRESA,
-    fmt,
+    gen7DigitId, EMPRESA, fmt,
     showAlert, hideAlert,
-    showModal, hideModal,
-    resetForm,
+    showModal, hideModal, resetForm,
     today, nowTime,
     generateVentaPDF, generateVentaExcel,
     generateCotizacionPDF, generateCotizacionExcel,

@@ -1,11 +1,7 @@
 /* ============================================================
    app.js  —  Controlador principal de la aplicación
-   Depende de: config.js → auth.js → api.js → utils.js → store.js → ui.js
    ============================================================ */
 
-// ----------------------------------------------------------------
-// GUARD: redirigir al login si no hay sesión
-// ----------------------------------------------------------------
 if (!Auth.isLoggedIn()) {
   window.location.href = 'pages/login.html';
 }
@@ -22,6 +18,7 @@ const State = {
   editingCotNumero: null,
   charts: { financiero: null, tendencias: null },
   _lastVentaForPrint: null,
+  historialVentas:  [],   // cache de ventas cargadas
 };
 
 // ----------------------------------------------------------------
@@ -38,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindForms();
   bindModals();
   bindLogout();
+  bindItbisToggles();
 });
 
 // ----------------------------------------------------------------
@@ -71,6 +69,38 @@ function bindLogout() {
 }
 
 // ----------------------------------------------------------------
+// ITBIS TOGGLE — ventas y cotización
+// ----------------------------------------------------------------
+function bindItbisToggles() {
+  // Venta
+  const vCheck = document.getElementById('v_itbis_check');
+  const vBadge = document.getElementById('v_itbis_badge');
+  if (vCheck && vBadge) {
+    vCheck.addEventListener('change', () => {
+      vBadge.textContent  = vCheck.checked ? 'ITBIS ON' : 'ITBIS OFF';
+      vBadge.className    = 'itbis-badge' + (vCheck.checked ? '' : ' off');
+    });
+  }
+
+  // Cotización
+  const cCheck = document.getElementById('cot_itbis_check');
+  const cBadge = document.getElementById('cot_itbis_badge');
+  if (cCheck && cBadge) {
+    cCheck.addEventListener('change', () => {
+      cBadge.textContent = cCheck.checked ? 'ITBIS ON' : 'ITBIS OFF';
+      cBadge.className   = 'itbis-badge' + (cCheck.checked ? '' : ' off');
+      // Recalcular tabla de cotización para reflejar el cambio
+      renderCotTable();
+    });
+  }
+}
+
+// Helpers para leer el estado del toggle
+function ventaConItbis()   { return document.getElementById('v_itbis_check')?.checked  ?? true; }
+function cotizConItbis()   { return document.getElementById('cot_itbis_check')?.checked ?? true; }
+function getItbisRate()    { return Utils.EMPRESA.itebis; }
+
+// ----------------------------------------------------------------
 // BIND FORMS & EVENTS
 // ----------------------------------------------------------------
 function bindForms() {
@@ -86,7 +116,9 @@ function bindForms() {
 
   // Editar producto
   document.getElementById('ep_buscarBtn')?.addEventListener('click', handleBuscarParaEditar);
-  document.getElementById('ep_query')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); handleBuscarParaEditar(); } });
+  document.getElementById('ep_query')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); handleBuscarParaEditar(); }
+  });
   document.getElementById('editProductoForm')?.addEventListener('submit', handleEditarProducto);
   document.getElementById('ep_eliminarBtn')?.addEventListener('click', handleEliminarProducto);
 
@@ -99,6 +131,11 @@ function bindForms() {
   document.getElementById('compraForm')?.addEventListener('submit', e => handleTransaccion(e, 'compra'));
   document.getElementById('ventaForm')?.addEventListener('submit',  e => handleTransaccion(e, 'venta'));
 
+  // Botón reimprimir última factura
+  document.getElementById('ventaPrintBtn')?.addEventListener('click', () => {
+    if (State._lastVentaForPrint) Utils.printVenta(State._lastVentaForPrint);
+  });
+
   // Cotización
   document.getElementById('cot_query')?.addEventListener('input', e => handleProductSearch(e.target.value, 'cot'));
   document.getElementById('cot_nuevaBtn')?.addEventListener('click', () => abrirFormCotizacion(null));
@@ -108,11 +145,6 @@ function bindForms() {
   document.getElementById('cot_generarPDFBtn')?.addEventListener('click',   () => cotDescargar('pdf'));
   document.getElementById('cot_imprimirBtn')?.addEventListener('click',     () => cotDescargar('print'));
   document.getElementById('cot_limpiarBtn')?.addEventListener('click', cotCancelar);
-
-  // Botón imprimir en ventas (muestra última factura emitida)
-  document.getElementById('ventaPrintBtn')?.addEventListener('click', () => {
-    if (State._lastVentaForPrint) Utils.printVenta(State._lastVentaForPrint);
-  });
 
   // Resúmenes
   document.getElementById('resumenVentasBtn')?.addEventListener('click', () => loadResumen('Ventas'));
@@ -133,11 +165,39 @@ function bindForms() {
   document.getElementById('dashboard')?.addEventListener('section:enter', handleLoadDashboard);
   document.getElementById('inventario')?.addEventListener('section:enter', loadInventario);
   document.getElementById('cotizacion')?.addEventListener('section:enter', renderCotList);
+  // Historial ahora en resúmenes
+  document.getElementById('resumenes')?.addEventListener('section:enter', () => {
+    // Auto-carga el historial al entrar a resúmenes
+    loadHistorialVentas();
+    // Init tabs
+    initResumenTabs();
+  });
+
+  // Wiring del botón historial
+  document.getElementById('cargarHistorialVentasBtn')?.addEventListener('click', loadHistorialVentas);
+}
+
+function initResumenTabs() {
+  const tabs = document.querySelectorAll('.resumen-tab');
+  tabs.forEach(tab => {
+    if (!tab.dataset.tabBound) {
+      tab.dataset.tabBound = '1';
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('is-active'));
+        tab.classList.add('is-active');
+        document.querySelectorAll('.resumen-tab-pane').forEach(p => p.classList.add('u-hidden'));
+        const pane = document.getElementById(`tab-${tab.dataset.tab}`);
+        if (pane) pane.classList.remove('u-hidden');
+        if (tab.dataset.tab === 'historial') loadHistorialVentas();
+      });
+    }
+  });
 }
 
 function bindModals() {
   document.getElementById('downloadInvoiceExcelBtn')?.addEventListener('click', UI.downloadCurrentInvoiceExcel);
   document.getElementById('downloadInvoicePDFBtn')?.addEventListener('click',   UI.downloadCurrentInvoicePDF);
+  document.getElementById('printInvoiceBtn')?.addEventListener('click',         UI.printCurrentInvoice);
 }
 
 // ----------------------------------------------------------------
@@ -186,18 +246,18 @@ async function loadChartsFromRaw() {
 }
 
 function renderCharts(data) {
-  const labels   = data.map(d => d.fecha);
-  const ventas   = data.map(d => parseFloat(d.total_ventas) || 0);
-  const compras  = data.map(d => parseFloat(d.total_compras) || 0);
-  const ganancias= data.map(d => parseFloat(d.ganancia) || 0);
+  const labels = data.map(d => d.fecha);
+  const ventas = data.map(d => parseFloat(d.total_ventas) || 0);
+  const compras = data.map(d => parseFloat(d.total_compras) || 0);
+  const ganancias = data.map(d => parseFloat(d.ganancia) || 0);
 
   if (State.charts.financiero) State.charts.financiero.destroy();
   State.charts.financiero = new Chart(document.getElementById('chartFinanciero').getContext('2d'), {
     type: 'bar',
     data: { labels, datasets: [
-      { label: 'Ventas',   data: ventas,   backgroundColor: 'rgba(5,93,226,0.7)',   borderColor: 'rgba(5,93,226,1)',   borderWidth: 1 },
-      { label: 'Compras',  data: compras,  backgroundColor: 'rgba(23,162,184,0.7)', borderColor: 'rgba(23,162,184,1)', borderWidth: 1 },
-      { label: 'Ganancias',data: ganancias,type: 'line', fill: false, borderColor: 'rgba(40,167,69,1)', borderWidth: 2, tension: 0.1 },
+      { label: 'Ventas',    data: ventas,    backgroundColor: 'rgba(5,93,226,0.7)',   borderColor: 'rgba(5,93,226,1)',   borderWidth: 1 },
+      { label: 'Compras',   data: compras,   backgroundColor: 'rgba(23,162,184,0.7)', borderColor: 'rgba(23,162,184,1)', borderWidth: 1 },
+      { label: 'Ganancias', data: ganancias, type: 'line', fill: false, borderColor: 'rgba(40,167,69,1)', borderWidth: 2, tension: 0.1 },
     ]},
     options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Resumen Financiero' }, tooltip: { mode: 'index', intersect: false } }, scales: { y: { beginAtZero: true } } },
   });
@@ -206,7 +266,7 @@ function renderCharts(data) {
   State.charts.tendencias = new Chart(document.getElementById('chartTendencias').getContext('2d'), {
     type: 'line',
     data: { labels, datasets: [
-      { label: 'Ventas Acumuladas',  data: ventas.reduce((a,c,i) => [...a,(a[i-1]||0)+c],[]), borderColor: 'rgba(5,93,226,1)', backgroundColor: 'rgba(5,93,226,0.08)', tension: 0.1, fill: true },
+      { label: 'Ventas Acumuladas',  data: ventas.reduce((a,c,i) => [...a,(a[i-1]||0)+c],[]), borderColor: 'rgba(5,93,226,1)',    backgroundColor: 'rgba(5,93,226,0.08)',    tension: 0.1, fill: true },
       { label: 'Compras Acumuladas', data: compras.reduce((a,c,i) => [...a,(a[i-1]||0)+c],[]), borderColor: 'rgba(23,162,184,1)', backgroundColor: 'rgba(23,162,184,0.08)', tension: 0.1, fill: true },
     ]},
     options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Tendencias Acumuladas' } }, scales: { y: { beginAtZero: true } } },
@@ -244,6 +304,126 @@ async function loadInventario() {
 }
 
 // ----------------------------------------------------------------
+// HISTORIAL DE VENTAS
+// ----------------------------------------------------------------
+async function loadHistorialVentas() {
+  const tb    = document.getElementById('historialVentasBody');
+  const stDiv = 'statusHistorialVentas';
+  if (!tb) return;
+
+  Utils.showAlert(stDiv, 'info', 'Cargando historial de ventas...');
+  tb.innerHTML = '<tr><td colspan="10" style="text-align:center;">Cargando...</td></tr>';
+
+  try {
+    // Necesitamos ventas + inventario para cruzar nombre del producto
+    const [vRes, invRes] = await Promise.all([Api.getData('VENTAS'), Api.getInventario()]);
+
+    if (vRes.status !== 'success' || !vRes.data?.length) {
+      Utils.showAlert(stDiv, 'warning', 'No hay ventas registradas.');
+      tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--gray-500);">Sin ventas registradas.</td></tr>';
+      return;
+    }
+
+    // Mapa de productos por ID para nombre rápido
+    const prodMap = {};
+    if (invRes.status === 'success' && invRes.data) {
+      invRes.data.forEach(p => { prodMap[String(p.id)] = p; });
+    }
+
+    // Guardar en estado para reimpresión
+    State.historialVentas = vRes.data;
+
+    const itbisRate = getItbisRate();
+
+    tb.innerHTML = vRes.data.map(v => {
+      const subtotal  = parseFloat(v.cantidad) * parseFloat(v.precio_venta);
+      // El historial muestra el ITBIS según si se registró con o sin (guardamos el flag si existe)
+      const conItbis  = v.con_itbis !== undefined ? v.con_itbis : true; // default: con ITBIS
+      const itbisAmt  = conItbis ? subtotal * itbisRate : 0;
+      const totalFinal= subtotal + itbisAmt;
+
+      const prod = prodMap[String(v.producto_id)];
+      const nombreProducto = prod ? prod.nombre : `ID: ${v.producto_id}`;
+
+      const fecha = v.fecha instanceof Date
+        ? v.fecha.toLocaleDateString('es-DO')
+        : (v.fecha ? new Date(v.fecha).toLocaleDateString('es-DO') : '—');
+
+      return `<tr>
+        <td><strong>${v.id}</strong></td>
+        <td>${fecha}</td>
+        <td>${v.cliente || '—'}</td>
+        <td>${nombreProducto}</td>
+        <td style="text-align:center;">${v.cantidad}</td>
+        <td style="text-align:right;">${Utils.fmt(parseFloat(v.precio_venta))}</td>
+        <td style="text-align:right;">${Utils.fmt(subtotal)}</td>
+        <td style="text-align:center;">${conItbis ? '<span class="itbis-badge" style="font-size:10px;">18%</span>' : '<span class="itbis-badge off" style="font-size:10px;">No</span>'}</td>
+        <td style="text-align:right;font-weight:700;color:var(--color-primary);">${Utils.fmt(totalFinal)}</td>
+        <td>
+          <button class="btn btn--print btn--sm" onclick="imprimirVentaHistorial('${v.id}')">
+            <i class="fas fa-print"></i>
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+
+    Utils.showAlert(stDiv, 'success', `${vRes.data.length} ventas cargadas.`);
+    setTimeout(UI.optimizeTables, 80);
+
+  } catch (err) {
+    Utils.showAlert(stDiv, 'error', err.message);
+    tb.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--color-danger);">Error: ${err.message}</td></tr>`;
+  }
+}
+
+// Imprimir una venta desde el historial
+async function imprimirVentaHistorial(ventaId) {
+  const venta = State.historialVentas.find(v => String(v.id) === String(ventaId));
+  if (!venta) {
+    alert('No se encontró la venta en el historial. Actualice la lista primero.');
+    return;
+  }
+
+  // Necesitamos el nombre del producto
+  let nombreProducto = `ID: ${venta.producto_id}`;
+  let codigoProducto = '—';
+  let categoriaProducto = '—';
+
+  try {
+    const inv = await Api.getInventario();
+    if (inv.status === 'success' && inv.data) {
+      const prod = inv.data.find(p => String(p.id) === String(venta.producto_id));
+      if (prod) {
+        nombreProducto   = prod.nombre;
+        codigoProducto   = prod['código'] || '—';
+        categoriaProducto= prod['categoría'] || '—';
+      }
+    }
+  } catch {}
+
+  const subtotal = parseFloat(venta.cantidad) * parseFloat(venta.precio_venta);
+  const conItbis = venta.con_itbis !== undefined ? venta.con_itbis : true;
+
+  const invData = {
+    id:          venta.id,
+    cliente:     venta.cliente || '—',
+    fecha:       venta.fecha instanceof Date
+                   ? venta.fecha.toLocaleDateString('es-DO')
+                   : (venta.fecha ? new Date(venta.fecha).toLocaleDateString('es-DO') : Utils.today()),
+    hora:        '—',
+    producto:    nombreProducto,
+    codigo:      codigoProducto,
+    categoria:   categoriaProducto,
+    cantidad:    parseInt(venta.cantidad),
+    precio:      parseFloat(venta.precio_venta),
+    total:       subtotal,
+    conItbis,
+  };
+
+  Utils.printVenta(invData);
+}
+
+// ----------------------------------------------------------------
 // CATEGORÍAS
 // ----------------------------------------------------------------
 async function handleAddCategoria(e) {
@@ -262,7 +442,7 @@ async function handleAddCategoria(e) {
 }
 
 // ----------------------------------------------------------------
-// AGREGAR PRODUCTO (ID 7 dígitos generado en backend)
+// AGREGAR PRODUCTO
 // ----------------------------------------------------------------
 async function handleAddProducto(e) {
   e.preventDefault();
@@ -270,12 +450,12 @@ async function handleAddProducto(e) {
   Utils.showAlert('statusProducto', 'info', 'Registrando producto...');
   try {
     const data = {
-      nombre:         document.getElementById('p_nombre').value,
-      codigo:         document.getElementById('p_codigo').value,
-      categoria:      document.getElementById('p_categoria').value,
-      precio_compra:  document.getElementById('p_precio_compra').value,
-      precio_venta:   document.getElementById('p_precio_venta').value,
-      stock:          document.getElementById('p_stock').value,
+      nombre:        document.getElementById('p_nombre').value,
+      codigo:        document.getElementById('p_codigo').value,
+      categoria:     document.getElementById('p_categoria').value,
+      precio_compra: document.getElementById('p_precio_compra').value,
+      precio_venta:  document.getElementById('p_precio_venta').value,
+      stock:         document.getElementById('p_stock').value,
     };
     const res = await Api.addProducto(data);
     if (res.status === 'success') {
@@ -298,12 +478,12 @@ async function handleBuscarParaEditar() {
     const res = await Api.searchProducto(query);
     if (res.status === 'success' && res.data?.length) {
       const p = res.data[0];
-      document.getElementById('ep_id').value           = p.id;
-      document.getElementById('ep_nombre').value       = p.nombre;
-      document.getElementById('ep_codigo').value       = p['código'] || p.codigo || '';
-      document.getElementById('ep_precio_compra').value= parseFloat(p.precio_compra || 0).toFixed(2);
-      document.getElementById('ep_precio_venta').value = parseFloat(p.precio_venta  || 0).toFixed(2);
-      document.getElementById('ep_stock').value        = p.stock || 0;
+      document.getElementById('ep_id').value            = p.id;
+      document.getElementById('ep_nombre').value        = p.nombre;
+      document.getElementById('ep_codigo').value        = p['código'] || p.codigo || '';
+      document.getElementById('ep_precio_compra').value = parseFloat(p.precio_compra || 0).toFixed(2);
+      document.getElementById('ep_precio_venta').value  = parseFloat(p.precio_venta  || 0).toFixed(2);
+      document.getElementById('ep_stock').value         = p.stock || 0;
       const sel = document.getElementById('ep_categoria');
       const cat = p['categoría'] || p.categoria || '';
       for (const opt of sel.options) { if (opt.value === cat) { opt.selected = true; break; } }
@@ -352,7 +532,7 @@ function handleEliminarProducto() {
 }
 
 // ----------------------------------------------------------------
-// BÚSQUEDA DE PRODUCTO (compras / ventas / cotización)
+// BÚSQUEDA DE PRODUCTO
 // ----------------------------------------------------------------
 async function handleProductSearch(query, prefix) {
   const detailDiv = document.getElementById(`${prefix}_product_details`);
@@ -376,7 +556,7 @@ async function handleProductSearch(query, prefix) {
       const p = res.data[0];
       State.productCache[p.id] = p;
       UI.fillProductDetail(p, `${prefix}_product_details`, prefix);
-      if (idInput)   idInput.value    = p.id;
+      if (idInput)   idInput.value      = p.id;
       if (submitBtn) submitBtn.disabled = false;
       if (addBtn)    addBtn.disabled    = false;
     } else if (detailDiv) {
@@ -386,16 +566,6 @@ async function handleProductSearch(query, prefix) {
   } catch (err) {
     if (detailDiv) { detailDiv.classList.remove('u-hidden'); detailDiv.innerHTML = `<p class="u-danger">Error: ${err.message}</p>`; }
   }
-  // Dentro de la función que carga los datos iniciales o después de una venta exitosa =============================================================================== gregory
-async function refreshData() {
-    // ... código de carga existente ...
-    const respVentas = await apiGet("getInventario", { sheetName: "Ventas" });
-    if (respVentas.status === "success") {
-        App.data.ventas = respVentas.data; // Guardamos en memoria para la reimpresión
-        UI.renderHistorialVentas(respVentas.data);
-    }
-}
-
 }
 
 // ----------------------------------------------------------------
@@ -415,31 +585,46 @@ async function handleTransaccion(e, type) {
   const extraVal = document.getElementById(type === 'compra' ? 'co_proveedor' : 'v_cliente').value.trim();
   if (!extraVal) { Utils.showAlert(statusId, 'error', `"${type === 'compra' ? 'Proveedor' : 'Cliente'}" es obligatorio.`); btn.disabled = false; return; }
 
-  const cantidad = document.getElementById(`${prefix}_cantidad`).value;
-  const precio   = document.getElementById(`${prefix}_precio_${type === 'compra' ? 'compra' : 'venta'}`).value;
-  const producto = State.productCache[productoId];
+  const cantidad  = document.getElementById(`${prefix}_cantidad`).value;
+  const precio    = document.getElementById(`${prefix}_precio_${type === 'compra' ? 'compra' : 'venta'}`).value;
+  const producto  = State.productCache[productoId];
+  const conItbis  = type === 'venta' ? ventaConItbis() : false;
 
   try {
-    const res = await Api.registrarTransaccion({ type, producto_id: productoId, cantidad, precio, extra_data: extraVal });
+    const res = await Api.registrarTransaccion({
+      type, producto_id: productoId, cantidad, precio, extra_data: extraVal, con_itbis: conItbis
+    });
+
     if (res.status === 'success') {
       Utils.showAlert(statusId, 'success', res.message);
+
       if (type === 'venta' && producto) {
-        const invData = {
-          id: res.id || `V-${Date.now()}`,
-          cliente: extraVal, fecha: Utils.today(), hora: Utils.nowTime(),
-          producto: producto.nombre, codigo: producto['código'],
+        const subtotal = parseInt(cantidad) * parseFloat(precio);
+        const invData  = {
+          id:        res.id || `V-${Date.now()}`,
+          cliente:   extraVal,
+          fecha:     Utils.today(),
+          hora:      Utils.nowTime(),
+          producto:  producto.nombre,
+          codigo:    producto['código'],
           categoria: producto['categoría'],
-          cantidad: parseInt(cantidad), precio: parseFloat(precio),
-          total: parseInt(cantidad) * parseFloat(precio),
+          cantidad:  parseInt(cantidad),
+          precio:    parseFloat(precio),
+          total:     subtotal,
+          conItbis,
         };
         State._lastVentaForPrint = invData;
         UI.showVentaInvoice(invData);
-        const pg = document.getElementById('ventaPrintGroup');
-        if (pg) pg.style.display = 'flex';
+
+        // Mostrar botón reimprimir
+        const pb = document.getElementById('ventaPrintBtn');
+        if (pb) pb.style.display = 'inline-flex';
       }
+
       e.target.reset();
       delete State.productCache[productoId];
       document.getElementById(`${prefix}_product_details`)?.classList.add('u-hidden');
+
     } else Utils.showAlert(statusId, 'error', res.message);
   } catch (err) { Utils.showAlert(statusId, 'error', err.message); }
   finally { btn.disabled = false; }
@@ -458,13 +643,16 @@ function renderCotList() {
   container.innerHTML = `
     <div class="table-wrapper">
       <table class="data-table">
-        <thead><tr><th>N°</th><th>Cliente</th><th>Fecha</th><th>Total</th><th>Acciones</th></tr></thead>
+        <thead><tr><th>N°</th><th>Cliente</th><th>Fecha</th><th>ITBIS</th><th>Total</th><th>Acciones</th></tr></thead>
         <tbody>${list.map(c => `
           <tr>
             <td><strong>${c.header.numero}</strong></td>
             <td>${c.header.cliente}</td>
             <td>${c.header.fecha}</td>
-            <td style="color:var(--color-primary);font-weight:700;">$${c.header.total.toFixed(2)}</td>
+            <td style="text-align:center;">${c.header.conItbis !== false
+              ? '<span class="itbis-badge" style="font-size:10px;">18%</span>'
+              : '<span class="itbis-badge off" style="font-size:10px;">No</span>'}</td>
+            <td style="color:var(--color-primary);font-weight:700;">${Utils.fmt(c.header.total)}</td>
             <td>
               <div class="btn-group" style="margin:0;gap:6px;">
                 <button onclick="cotFacturar('${c.header.numero}')" class="btn btn--secondary btn--sm"><i class="fas fa-file-invoice"></i> Facturar</button>
@@ -480,11 +668,17 @@ function renderCotList() {
 
 function abrirFormCotizacion(numero) {
   State.editingCotNumero = numero;
-  State.cotItems = [];
+  State.cotItems   = [];
   State.cotCounter = 0;
-  ['cot_cliente','cot_email','cot_telefono','cot_notas'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['cot_cliente','cot_email','cot_telefono','cot_notas'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
   const validezEl = document.getElementById('cot_validez');
   if (validezEl) validezEl.value = '15';
+
+  // Restaurar toggle ITBIS
+  const itbisEl = document.getElementById('cot_itbis_check');
+  const itbisBadge = document.getElementById('cot_itbis_badge');
 
   if (numero) {
     const saved = Store.find(numero);
@@ -495,9 +689,23 @@ function abrirFormCotizacion(numero) {
       if (el('cot_telefono')) el('cot_telefono').value = saved.header.telefono || '';
       if (el('cot_validez'))  el('cot_validez').value  = saved.header.validez  || '15';
       if (el('cot_notas'))    el('cot_notas').value    = saved.header.notas    || '';
+
+      // Restaurar ITBIS toggle
+      const withItbis = saved.header.conItbis !== false;
+      if (itbisEl) itbisEl.checked = withItbis;
+      if (itbisBadge) {
+        itbisBadge.textContent = withItbis ? 'ITBIS ON' : 'ITBIS OFF';
+        itbisBadge.className   = 'itbis-badge' + (withItbis ? '' : ' off');
+      }
+
       State.cotItems = saved.items.map(it => ({ ...it, id: ++State.cotCounter }));
     }
+  } else {
+    // Nueva cotización: ITBIS ON por defecto
+    if (itbisEl) itbisEl.checked = true;
+    if (itbisBadge) { itbisBadge.textContent = 'ITBIS ON'; itbisBadge.className = 'itbis-badge'; }
   }
+
   renderCotTable();
   document.getElementById('cotFormWrapper')?.classList.remove('u-hidden');
   document.getElementById('cotFormWrapper')?.scrollIntoView({ behavior: 'smooth' });
@@ -506,15 +714,18 @@ function abrirFormCotizacion(numero) {
 function cotCancelar() {
   document.getElementById('cotFormWrapper')?.classList.add('u-hidden');
   State.editingCotNumero = null;
-  State.cotItems = [];
+  State.cotItems   = [];
   State.cotCounter = 0;
 }
 
 function cotAgregar() {
-  const pid   = document.getElementById('cot_producto_id').value;
-  const cant  = parseInt(document.getElementById('cot_cantidad').value) || 1;
-  const precio= parseFloat(document.getElementById('cot_precio').value) || 0;
-  if (!pid || cant < 1 || precio <= 0) { Utils.showAlert('statusCotizacion', 'warning', 'Seleccione producto, cantidad y precio.'); return; }
+  const pid    = document.getElementById('cot_producto_id').value;
+  const cant   = parseInt(document.getElementById('cot_cantidad').value) || 1;
+  const precio = parseFloat(document.getElementById('cot_precio').value) || 0;
+  if (!pid || cant < 1 || precio <= 0) {
+    Utils.showAlert('statusCotizacion', 'warning', 'Seleccione producto, cantidad y precio.');
+    return;
+  }
   const p = State.productCache[pid];
   if (!p) return;
   State.cotItems.push({ id: ++State.cotCounter, pid, nombre: p.nombre, codigo: p['código'], cant, precio, subtotal: cant * precio });
@@ -528,14 +739,18 @@ function cotAgregar() {
   Utils.showAlert('statusCotizacion', 'success', `"${p.nombre}" agregado.`);
 }
 
-function cotQuitarItem(id) { State.cotItems = State.cotItems.filter(i => i.id !== id); renderCotTable(); }
+function cotQuitarItem(id) {
+  State.cotItems = State.cotItems.filter(i => i.id !== id);
+  renderCotTable();
+}
 
 function renderCotTable() {
-  const tb      = document.getElementById('cotTableBody');
-  const tf      = document.getElementById('cotTableFoot');
-  const excelBtn  = document.getElementById('cot_generarExcelBtn');
-  const pdfBtn    = document.getElementById('cot_generarPDFBtn');
-  const printBtn  = document.getElementById('cot_imprimirBtn');
+  const tb       = document.getElementById('cotTableBody');
+  const tf       = document.getElementById('cotTableFoot');
+  const excelBtn = document.getElementById('cot_generarExcelBtn');
+  const pdfBtn   = document.getElementById('cot_generarPDFBtn');
+  const printBtn = document.getElementById('cot_imprimirBtn');
+
   if (!State.cotItems.length) {
     tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray-500);">Agregue productos.</td></tr>';
     tf.innerHTML = '';
@@ -544,37 +759,73 @@ function renderCotTable() {
     if (printBtn) printBtn.disabled = true;
     return;
   }
+
   if (excelBtn) excelBtn.disabled = false;
   if (pdfBtn)   pdfBtn.disabled   = false;
   if (printBtn) printBtn.disabled = false;
+
+  const subtotalTotal = State.cotItems.reduce((s, i) => s + i.subtotal, 0);
+  const conItbis      = cotizConItbis();
+  const itbisAmt      = conItbis ? subtotalTotal * getItbisRate() : 0;
+  const grandTotal    = subtotalTotal + itbisAmt;
+
   tb.innerHTML = State.cotItems.map((it, i) => `
     <tr>
       <td>${i+1}</td><td>${it.nombre}</td><td>${it.codigo}</td>
-      <td>${it.cant}</td><td>$${it.precio.toFixed(2)}</td>
-      <td><strong>$${it.subtotal.toFixed(2)}</strong></td>
+      <td>${it.cant}</td>
+      <td style="text-align:right;">${Utils.fmt(it.precio)}</td>
+      <td style="text-align:right;"><strong>${Utils.fmt(it.subtotal)}</strong></td>
       <td><button class="btn-icon btn-icon--danger" onclick="cotQuitarItem(${it.id})"><i class="fas fa-times"></i></button></td>
     </tr>`).join('');
-  const total = State.cotItems.reduce((s, i) => s + i.subtotal, 0);
-  tf.innerHTML = `<tr class="tfoot-total"><td colspan="5" style="text-align:right;">TOTAL:</td><td style="color:var(--color-primary);font-size:1rem;">$${total.toFixed(2)}</td><td></td></tr>`;
+
+  tf.innerHTML = `
+    <tr class="tfoot-total">
+      <td colspan="5" style="text-align:right;font-weight:600;">Subtotal:</td>
+      <td style="text-align:right;font-weight:700;">${Utils.fmt(subtotalTotal)}</td>
+      <td></td>
+    </tr>
+    ${conItbis ? `<tr class="tfoot-total">
+      <td colspan="5" style="text-align:right;font-weight:600;">ITBIS ${Math.round(getItbisRate()*100)}%:</td>
+      <td style="text-align:right;font-weight:700;">${Utils.fmt(itbisAmt)}</td>
+      <td></td>
+    </tr>` : ''}
+    <tr class="tfoot-total" style="font-size:1rem;">
+      <td colspan="5" style="text-align:right;font-weight:700;">TOTAL ${conItbis ? 'c/ITBIS' : 's/ITBIS'}:</td>
+      <td style="text-align:right;font-weight:800;color:var(--color-primary);">${Utils.fmt(grandTotal)}</td>
+      <td></td>
+    </tr>`;
 }
 
 function buildCotHeader(numero) {
-  const total = State.cotItems.reduce((s, i) => s + i.subtotal, 0);
+  const subtotal  = State.cotItems.reduce((s, i) => s + i.subtotal, 0);
+  const conItbis  = cotizConItbis();
+  const itbisAmt  = conItbis ? subtotal * getItbisRate() : 0;
+  const total     = subtotal + itbisAmt;
+
   return {
-    cliente:  document.getElementById('cot_cliente')?.value.trim() || 'Sin nombre',
-    email:    document.getElementById('cot_email')?.value.trim()   || '',
-    telefono: document.getElementById('cot_telefono')?.value.trim()|| '',
-    validez:  document.getElementById('cot_validez')?.value        || '15',
-    notas:    document.getElementById('cot_notas')?.value.trim()   || '',
+    cliente:  document.getElementById('cot_cliente')?.value.trim()  || 'Sin nombre',
+    email:    document.getElementById('cot_email')?.value.trim()    || '',
+    telefono: document.getElementById('cot_telefono')?.value.trim() || '',
+    validez:  document.getElementById('cot_validez')?.value         || '15',
+    notas:    document.getElementById('cot_notas')?.value.trim()    || '',
     fecha:    Utils.today(),
     numero:   numero || State.editingCotNumero || `COT-${Date.now().toString().slice(-6)}`,
+    conItbis,
+    subtotal,
+    itbisAmt,
     total,
   };
 }
 
 function cotGuardar() {
-  if (!document.getElementById('cot_cliente')?.value.trim()) { Utils.showAlert('statusCotizacion', 'warning', 'El nombre del cliente es obligatorio.'); return; }
-  if (!State.cotItems.length) { Utils.showAlert('statusCotizacion', 'warning', 'Agregue al menos un producto.'); return; }
+  if (!document.getElementById('cot_cliente')?.value.trim()) {
+    Utils.showAlert('statusCotizacion', 'warning', 'El nombre del cliente es obligatorio.');
+    return;
+  }
+  if (!State.cotItems.length) {
+    Utils.showAlert('statusCotizacion', 'warning', 'Agregue al menos un producto.');
+    return;
+  }
   const header = buildCotHeader();
   Store.upsert({ header, items: State.cotItems.map(it => ({ ...it })) });
   Utils.showAlert('statusCotizacion', 'success', `Cotización ${header.numero} guardada.`);
@@ -588,9 +839,9 @@ function cotDescargar(format) {
     return;
   }
   const header = buildCotHeader();
-  if (format === 'pdf')       Utils.generateCotizacionPDF(header, State.cotItems);
+  if (format === 'pdf')        Utils.generateCotizacionPDF(header, State.cotItems);
   else if (format === 'print') Utils.printCotizacion(header, State.cotItems);
-  else                        Utils.generateCotizacionExcel(header, State.cotItems);
+  else                         Utils.generateCotizacionExcel(header, State.cotItems);
 }
 
 function cotFacturar(numero) {
@@ -614,8 +865,8 @@ async function loadResumen(type) {
   const sheet = type === 'Ventas' ? 'VENTAS' : 'COMPRAS';
   State.resumenType = type;
   State.resumenData = [];
-  const table  = document.getElementById('resumenTable');
-  const dlBtn  = document.getElementById('descargarResumenBtn');
+  const table = document.getElementById('resumenTable');
+  const dlBtn = document.getElementById('descargarResumenBtn');
   if (table) { table.classList.add('u-hidden'); table.querySelector('thead').innerHTML = ''; document.getElementById('resumenTableBody').innerHTML = ''; }
   if (dlBtn)  dlBtn.classList.add('u-hidden');
   Utils.showAlert('statusResumen', 'info', `Cargando ${sheet}...`);
@@ -628,7 +879,11 @@ async function loadResumen(type) {
       dlBtn.classList.remove('u-hidden');
       table.querySelector('thead').innerHTML = `<tr>${Object.keys(res.data[0]).map(h => `<th>${h.toUpperCase().replace('_',' ')}</th>`).join('')}</tr>`;
       document.getElementById('resumenTableBody').innerHTML = res.data.map(row =>
-        `<tr>${Object.values(row).map(v => { if (v instanceof Date) v = v.toLocaleDateString(); else if (typeof v === 'number') v = v.toFixed(2); return `<td>${v}</td>`; }).join('')}</tr>`
+        `<tr>${Object.values(row).map(v => {
+          if (v instanceof Date) v = v.toLocaleDateString();
+          else if (typeof v === 'number') v = v.toFixed(2);
+          return `<td>${v}</td>`;
+        }).join('')}</tr>`
       ).join('');
     } else Utils.showAlert('statusResumen', 'warning', `Sin datos en ${sheet}.`);
   } catch (err) { Utils.showAlert('statusResumen', 'error', err.message); }

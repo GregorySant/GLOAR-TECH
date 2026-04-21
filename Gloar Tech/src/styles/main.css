@@ -49,10 +49,6 @@ body {
 /* Logo */
 
 
-
-
-
-
 /* contenedor blanco */
 .logo-box {
     background: #ffffff;
@@ -91,11 +87,6 @@ body {
 .tech {
     color: #321c07;
 }
-
-
-
-
-
 
 
 .sidebar__logo {
@@ -784,3 +775,124 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   color: var(--gray-900);
   transform: translateY(-1px);
 }
+
+
+/* ============================================================
+   ITBIS TOGGLE
+   ============================================================ */
+.itbis-toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  background: var(--color-primary-light);
+  border: 1.5px solid var(--color-primary);
+  border-radius: var(--radius);
+  flex-wrap: wrap;
+}
+
+.itbis-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Ocultar el checkbox nativo */
+.itbis-checkbox { display: none; }
+
+/* Track */
+.itbis-toggle-track {
+  width: 44px;
+  height: 24px;
+  background: var(--gray-300);
+  border-radius: 12px;
+  position: relative;
+  flex-shrink: 0;
+  transition: background var(--ease-fast);
+}
+
+/* Thumb */
+.itbis-toggle-thumb {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 18px; height: 18px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+  transition: transform var(--ease-fast);
+}
+
+/* Checked state */
+.itbis-checkbox:checked + .itbis-toggle-track {
+  background: var(--color-primary);
+}
+.itbis-checkbox:checked + .itbis-toggle-track .itbis-toggle-thumb {
+  transform: translateX(20px);
+}
+
+.itbis-toggle-text {
+  font-size: var(--text-sm);
+  color: var(--color-primary-dark);
+  font-weight: 500;
+}
+
+/* Badge de estado */
+.itbis-badge {
+  display: inline-block;
+  background: var(--color-primary);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  letter-spacing: 0.05em;
+  transition: background var(--ease-fast);
+}
+.itbis-badge.off {
+  background: var(--gray-400);
+}
+
+/* ============================================================
+   HISTORIAL DE VENTAS  — card extra
+   ============================================================ */
+.u-mt-4 { margin-top: 1.5rem; }
+
+
+/* ============================================================
+   RESUMEN TABS  (Historial / Reportes)
+   ============================================================ */
+.resumen-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 2px solid var(--gray-200);
+  padding-bottom: 0;
+}
+
+.resumen-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-5);
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--gray-500);
+  cursor: pointer;
+  transition: color var(--ease-fast), border-color var(--ease-fast);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.resumen-tab:hover { color: var(--color-primary); background: var(--color-primary-light); }
+.resumen-tab.is-active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.resumen-tab-pane { animation: fadeUp 0.2s ease-out; }
