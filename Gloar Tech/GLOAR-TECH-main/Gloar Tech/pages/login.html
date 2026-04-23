@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<!-- Randy -->
+<link rel="icon" type="image/png" href="../image/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="../image/favicon.svg" />
+<link rel="shortcut icon" href="../image/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="../image/apple-touch-icon.png" />
+<!-- Randy -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gloar Tech</title>
+
+    <!-- Fonts & Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Design tokens → login styles -->
+    <link rel="stylesheet" href="../src/styles/variables.css">
+    <link rel="stylesheet" href="../src/styles/login.css">
+</head>
+<body>
+
+<div class="login-wrapper">
+
+    <!-- Logo -->
+     <!-- Randy -->
+    <div class="login__logo">
+    <div class="login__icon-wrap">
+        <img src="../image/logo-sin-fondo.png" alt="Logo" class="login__img-logo">
+    </div>
+    <h1 class="login__app-name">Gloar Tech</h1>
+    <p class="login__tagline">Sistema de gestión de inventario</p>
+</div>
+<!-- Randy -->
+
+    <!-- Card -->
+    <div class="login__card">
+        <h2 class="login__heading">
+            <i class="fas fa-lock" style="color:var(--color-primary);margin-right:6px;"></i>
+            Acceso al Sistema
+        </h2>
+        <p class="login__sub">Seleccione su perfil e ingrese su clave.</p>
+
+        <!-- Rol -->
+        <div class="login__tabs" id="roleTabs">
+            <div class="login__tab is-active" data-role="usuario" onclick="selectRole('usuario', this)">
+                <i class="fas fa-user"></i>
+                <span class="login__tab-label">Usuario</span>
+            </div>
+            <div class="login__tab" data-role="admin" onclick="selectRole('admin', this)">
+                <i class="fas fa-user-shield"></i>
+                <span class="login__tab-label">Administrador</span>
+            </div>
+        </div>
+
+        <!-- Clave -->
+        <div class="login__field">
+            <label class="login__label" for="loginPassword">Clave de acceso</label>
+            <div class="login__input-wrap">
+                <input
+                    type="password"
+                    id="loginPassword"
+                    class="login__input"
+                    placeholder="••••••••"
+                    autocomplete="current-password"
+                >
+                <button class="login__eye" type="button" onclick="togglePwd()" aria-label="Mostrar clave">
+                    <i class="fas fa-eye" id="eyeIcon"></i>
+                </button>
+            </div>
+            <div class="login__error" id="loginError">
+                <i class="fas fa-times-circle"></i> Clave incorrecta. Intente de nuevo.
+            </div>
+        </div>
+
+        <button class="login__btn" onclick="doLogin()">
+            <i class="fas fa-unlock"></i> Ingresar
+        </button>
+    </div>
+
+    <p class="login__footer">Sistema de Inventario &mdash; Acceso Restringido</p>
+</div>
+
+<!-- Config (inline, mínimo necesario para auth en esta página) -->
+<script>
+    const STORAGE_KEYS    = { admin: 'inv_admin_key', usuario: 'inv_user_key' };
+    const DEFAULT_PWDS    = { admin: 'admin123',      usuario: 'usuario123'   };
+    const SESSION_KEY     = 'inv_role';
+
+    function getPassword(role) { return localStorage.getItem(STORAGE_KEYS[role]) || DEFAULT_PWDS[role]; }
+
+    let selectedRole = 'usuario';
+
+    // Si ya hay sesión, ir al app
+    if (sessionStorage.getItem(SESSION_KEY)) window.location.href = '../index.html';
+
+    function selectRole(role, el) {
+        selectedRole = role;
+        document.querySelectorAll('.login__tab').forEach(t => t.classList.remove('is-active'));
+        el.classList.add('is-active');
+        document.getElementById('loginPassword').focus();
+    }
+
+    function togglePwd() {
+        const inp  = document.getElementById('loginPassword');
+        const icon = document.getElementById('eyeIcon');
+        inp.type   = inp.type === 'password' ? 'text' : 'password';
+        icon.className = inp.type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+    }
+
+    function doLogin() {
+        const pwd = document.getElementById('loginPassword').value.trim();
+        const err = document.getElementById('loginError');
+        if (pwd === getPassword(selectedRole)) {
+            sessionStorage.setItem(SESSION_KEY, selectedRole);
+            window.location.href = '../index.html';
+        } else {
+            err.classList.add('is-visible');
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('loginPassword').focus();
+            setTimeout(() => err.classList.remove('is-visible'), 4000);
+        }
+    }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+
+</body>
+</html>
