@@ -275,19 +275,19 @@
 
             <!-- Tabs de navegación interna -->
             <div class="resumen-tabs">
-                <button class="resumen-tab is-active" data-tab="historial">
-                    <i class="fas fa-history"></i> Historial de Ventas
+                <button class="resumen-tab is-active" data-tab="facturas">
+                    <i class="fas fa-file-invoice"></i> Reimprimir Facturas
                 </button>
                 <button class="resumen-tab" data-tab="reportes">
                     <i class="fas fa-chart-bar"></i> Reportes
                 </button>
             </div>
 
-            <!-- Tab: Historial de Ventas -->
-            <div id="tab-historial" class="resumen-tab-pane">
+            <!-- Tab: Reimprimir Facturas -->
+            <div id="tab-facturas" class="resumen-tab-pane">
                 <div class="card">
                     <div class="card__header">
-                        <h3 class="card__title" style="margin:0;"><i class="fas fa-history"></i> Historial de Ventas</h3>
+                        <h3 class="card__title" style="margin:0;"><i class="fas fa-file-invoice"></i> Facturas Realizadas</h3>
                         <button id="cargarHistorialVentasBtn" class="btn btn--secondary btn--sm">
                             <i class="fas fa-sync"></i> Actualizar
                         </button>
@@ -297,12 +297,11 @@
                         <table class="data-table">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
+                                    <th>No. Factura</th>
                                     <th>Fecha</th>
                                     <th>Cliente</th>
                                     <th>Producto</th>
                                     <th>Cant.</th>
-                                    <th>P. Unit.</th>
                                     <th>Subtotal</th>
                                     <th>ITBIS</th>
                                     <th>Total RD$</th>
@@ -310,7 +309,7 @@
                                 </tr>
                             </thead>
                             <tbody id="historialVentasBody">
-                                <tr><td colspan="10" style="text-align:center;color:var(--gray-500);">Presiona "Actualizar" para cargar el historial.</td></tr>
+                                <tr><td colspan="9" style="text-align:center;color:var(--gray-500);">Presiona "Actualizar" para cargar las facturas.</td></tr>
                             </tbody>
                         </table>
                         <div class="table-hint u-hidden"><i class="fas fa-arrows-alt-h"></i> Desliza para ver más</div>

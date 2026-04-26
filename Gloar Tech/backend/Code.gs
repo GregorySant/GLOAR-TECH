@@ -1,26 +1,21 @@
 // ================================================================
 //  INVENTARIO — Google Apps Script Backend
 //  backend/Code.gs
-//
-//  Pega este código en tu proyecto de Google Apps Script.
-//  Reemplaza SPREADSHEET_ID con el ID de tu Google Sheet.
 // ================================================================
 
 const SPREADSHEET_ID   = "1K_HDcKJZTXpLH0jmzZt5G8lEYZYtqwQGCfNDkmgVCQc";
 
-// Nombres de hojas
 const HOJA_CATEGORIAS  = "Categorias";
 const HOJA_PRODUCTOS   = "Productos";
 const HOJA_COMPRAS     = "Compras";
 const HOJA_VENTAS      = "Ventas";
 const HOJA_RESUMEN     = "resumen_diario";
 
-// Encabezados por hoja
 const HEADERS = {
   categorias : ["id", "nombre"],
   productos  : ["id", "nombre", "código", "categoría", "precio_compra", "precio_venta", "stock", "fecha_creado"],
   compras    : ["id", "producto_id", "cantidad", "precio_compra", "fecha", "proveedor"],
-  ventas     : ["id", "producto_id", "cantidad", "precio_venta",  "fecha", "cliente"],
+  ventas     : ["id", "producto_id", "cantidad", "precio_venta",  "fecha", "cliente", "con_itbis"],
   resumen    : ["fecha", "total_ventas", "total_compras", "ganancia", "productos_vendidos"]
 };
 
@@ -32,10 +27,6 @@ function getSpreadsheet() {
   return SpreadsheetApp.openById(SPREADSHEET_ID);
 }
 
-/**
- * Genera un ID numérico de exactamente 7 dígitos, único dentro de la hoja dada.
- * Rango: 1 000 000 – 9 999 999
- */
 function generate7DigitId(sheet) {
   const usedIds = new Set();
 
@@ -171,12 +162,10 @@ function agregarProducto(data) {
   const sheet = ss.getSheetByName(HOJA_PRODUCTOS);
   if (!sheet) return sheetNotFound(HOJA_PRODUCTOS);
 
-  // Si el frontend envió un ID de 7 dígitos, usarlo; si no, generar uno
   let newId = String(data.id || "").trim();
   if (!/^\d{7}$/.test(newId)) {
     newId = generate7DigitId(sheet);
   } else {
-    // Verificar que no exista ya
     const existing = getData(HOJA_PRODUCTOS);
     if (existing.status === "success" && existing.data.some(p => String(p.id) === newId)) {
       newId = generate7DigitId(sheet);
@@ -205,9 +194,6 @@ function editarProducto(data) {
   const { rowIndex } = findProductRow(sheet, data.id);
   if (rowIndex === -1) return { status: "error", message: `Producto ID ${data.id} no encontrado.` };
 
-  // rowIndex es base-0 desde fila 1 (encabezado). La fila real en Sheets = rowIndex + 1 (encabezado) + 1 = rowIndex + 2
-  // Pero findProductRow ya devuelve el índice en el array (0 = encabezado, 1 = primera fila de datos)
-  // La fila real en Sheets = rowIndex + 1
   const sheetRow = rowIndex + 1;
 
   sheet.getRange(sheetRow, 2).setValue(data.nombre);
@@ -229,7 +215,7 @@ function eliminarProducto(data) {
   if (rowIndex === -1) return { status: "error", message: `Producto ID ${data.id} no encontrado.` };
 
   const nombre   = rowData ? rowData[1] : data.id;
-  const sheetRow = rowIndex + 1;  // +1 porque rowIndex 1 = fila 2 de Sheets (fila 1 es encabezado)
+  const sheetRow = rowIndex + 1;
 
   sheet.deleteRow(sheetRow);
 
@@ -254,8 +240,8 @@ function registrarTransaccion(data) {
     return { status: "error", message: `Producto ID ${data.producto_id} no encontrado.` };
   }
 
-  const cantidad  = parseInt(data.cantidad);
-  const precio    = parseFloat(data.precio);
+  const cantidad    = parseInt(data.cantidad);
+  const precio      = parseFloat(data.precio);
   const stockActual = parseFloat(rowData[6]) || 0;
 
   if (!isCompra && stockActual < cantidad) {
@@ -268,8 +254,14 @@ function registrarTransaccion(data) {
   const nuevoStock = isCompra ? stockActual + cantidad : stockActual - cantidad;
   const txId       = generate7DigitId(sheetTx);
 
-  // Registrar transacción
-  sheetTx.appendRow([txId, data.producto_id, cantidad, precio, new Date(), data.extra_data || ""]);
+  if (isCompra) {
+    // Compras: sin campo con_itbis
+    sheetTx.appendRow([txId, data.producto_id, cantidad, precio, new Date(), data.extra_data || ""]);
+  } else {
+    // Ventas: guardar con_itbis como TRUE/FALSE explícito
+    const conItbis = data.con_itbis === true || data.con_itbis === "true";
+    sheetTx.appendRow([txId, data.producto_id, cantidad, precio, new Date(), data.extra_data || "", conItbis]);
+  }
 
   // Actualizar stock
   const sheetRow = rowIndex + 1;
@@ -323,12 +315,6 @@ function getData(sheetName) {
   return { status: "success", data: mapped };
 }
 
-/**
- * Busca un producto por ID.
- * Devuelve { rowData: Array, rowIndex: number } donde rowIndex es 1-based dentro
- * del array de datos crudos (índice 0 = encabezado, índice 1 = primera fila de datos).
- * La fila real en Google Sheets = rowIndex + 1.
- */
 function findProductRow(sheet, productoId) {
   if (!sheet || sheet.getLastRow() < 2) return { rowData: null, rowIndex: -1 };
 

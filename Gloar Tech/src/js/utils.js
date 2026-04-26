@@ -33,11 +33,11 @@ const Utils = (() => {
   // EMPRESA INFO
   // ================================================================
   const EMPRESA = {
-    nombre:    'Soluciones Linares P',
-    correo:    'solucionesp@gmail.com',
-    direccion: 'Av. Hermanas Mirabal Santa Cruz, Villa Mella. Frente a helados bon. S.D.N.',
-    telefono:  '849-850-0698',
-    rnc:       '22500275478',
+    nombre:    'Gloar Tech S.R.L.',
+    correo:    'info@gloartech.com',
+    direccion: 'Av. Hermanas Mirabal S.D.N.',
+    telefono:  '809-090-9878',
+    rnc:       '#############',
     contacto:  'Gumeidy Linares',
     itebis:    0.18,
     moneda:    'RD$',
@@ -76,12 +76,34 @@ const Utils = (() => {
       background:rgba(255,255,255,0.07);
     }
     .logo-title { font-size:14px; font-weight:700; line-height:1.25; margin-bottom:6px; padding-right:36px; }
-    .logo-icon {
-      position:absolute; top:8px; right:8px;
-      background:rgba(0,0,0,0.25); border-radius:6px;
-      width:34px; height:30px; display:flex; align-items:center; justify-content:center;
-      font-size:17px;
-    }
+  
+  .logo-box {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.logo-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logo-img {
+    width: 50px;
+    height: auto;
+}
+
+/* Mejor alineación del título */
+.logo-title {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+}
+
+
+
     .logo-sep { border-top:1px solid rgba(255,255,255,0.3); margin:6px 0; }
     .logo-info { font-size:6.8px; line-height:1.75; opacity:0.9; }
     .logo-contact { margin-top:5px; font-size:7.5px; font-weight:700; color:#b4ffb4; }
@@ -167,8 +189,8 @@ const Utils = (() => {
     return `
       <div class="doc-header">
         <div class="logo-box">
+        <div class="logo-icon"><img src="image/logo-sin-fondo.png" alt="Logo" class="logo-img"></div> 
           <div class="logo-title">${E.nombre}</div>
-          <div class="logo-icon">🏠</div>
           <div class="logo-sep"></div>
           <div class="logo-info">
             correo: ${E.correo}<br>

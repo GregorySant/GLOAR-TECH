@@ -167,9 +167,7 @@ function bindForms() {
   document.getElementById('cotizacion')?.addEventListener('section:enter', renderCotList);
   // Historial ahora en resúmenes
   document.getElementById('resumenes')?.addEventListener('section:enter', () => {
-    // Auto-carga el historial al entrar a resúmenes
     loadHistorialVentas();
-    // Init tabs
     initResumenTabs();
   });
 
@@ -188,7 +186,7 @@ function initResumenTabs() {
         document.querySelectorAll('.resumen-tab-pane').forEach(p => p.classList.add('u-hidden'));
         const pane = document.getElementById(`tab-${tab.dataset.tab}`);
         if (pane) pane.classList.remove('u-hidden');
-        if (tab.dataset.tab === 'historial') loadHistorialVentas();
+        if (tab.dataset.tab === 'facturas') loadHistorialVentas();
       });
     }
   });
@@ -304,43 +302,40 @@ async function loadInventario() {
 }
 
 // ----------------------------------------------------------------
-// HISTORIAL DE VENTAS
+// FACTURAS REALIZADAS (reimprimir)
 // ----------------------------------------------------------------
 async function loadHistorialVentas() {
   const tb    = document.getElementById('historialVentasBody');
   const stDiv = 'statusHistorialVentas';
   if (!tb) return;
 
-  Utils.showAlert(stDiv, 'info', 'Cargando historial de ventas...');
-  tb.innerHTML = '<tr><td colspan="10" style="text-align:center;">Cargando...</td></tr>';
+  Utils.showAlert(stDiv, 'info', 'Cargando facturas...');
+  tb.innerHTML = '<tr><td colspan="9" style="text-align:center;">Cargando...</td></tr>';
 
   try {
-    // Necesitamos ventas + inventario para cruzar nombre del producto
     const [vRes, invRes] = await Promise.all([Api.getData('VENTAS'), Api.getInventario()]);
 
     if (vRes.status !== 'success' || !vRes.data?.length) {
-      Utils.showAlert(stDiv, 'warning', 'No hay ventas registradas.');
-      tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--gray-500);">Sin ventas registradas.</td></tr>';
+      Utils.showAlert(stDiv, 'warning', 'No hay facturas registradas.');
+      tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--gray-500);">Sin facturas registradas.</td></tr>';
       return;
     }
 
-    // Mapa de productos por ID para nombre rápido
     const prodMap = {};
     if (invRes.status === 'success' && invRes.data) {
       invRes.data.forEach(p => { prodMap[String(p.id)] = p; });
     }
 
-    // Guardar en estado para reimpresión
     State.historialVentas = vRes.data;
-
     const itbisRate = getItbisRate();
 
     tb.innerHTML = vRes.data.map(v => {
-      const subtotal  = parseFloat(v.cantidad) * parseFloat(v.precio_venta);
-      // El historial muestra el ITBIS según si se registró con o sin (guardamos el flag si existe)
-      const conItbis  = v.con_itbis !== undefined ? v.con_itbis : true; // default: con ITBIS
-      const itbisAmt  = conItbis ? subtotal * itbisRate : 0;
-      const totalFinal= subtotal + itbisAmt;
+      const subtotal = parseFloat(v.cantidad) * parseFloat(v.precio_venta);
+      const rawItbis = v.con_itbis;
+      const conItbis = rawItbis === true || rawItbis === 1 ||
+        (typeof rawItbis === 'string' && rawItbis.trim().toLowerCase() === 'true');
+      const itbisAmt   = conItbis ? subtotal * itbisRate : 0;
+      const totalFinal = subtotal + itbisAmt;
 
       const prod = prodMap[String(v.producto_id)];
       const nombreProducto = prod ? prod.nombre : `ID: ${v.producto_id}`;
@@ -349,30 +344,33 @@ async function loadHistorialVentas() {
         ? v.fecha.toLocaleDateString('es-DO')
         : (v.fecha ? new Date(v.fecha).toLocaleDateString('es-DO') : '—');
 
+      const itbisCell = conItbis
+        ? `<span style="color:var(--color-success);font-weight:600;">${Utils.fmt(itbisAmt)}</span>`
+        : `<span class="itbis-badge off" style="font-size:10px;">No</span>`;
+
       return `<tr>
         <td><strong>${v.id}</strong></td>
         <td>${fecha}</td>
         <td>${v.cliente || '—'}</td>
         <td>${nombreProducto}</td>
         <td style="text-align:center;">${v.cantidad}</td>
-        <td style="text-align:right;">${Utils.fmt(parseFloat(v.precio_venta))}</td>
         <td style="text-align:right;">${Utils.fmt(subtotal)}</td>
-        <td style="text-align:center;">${conItbis ? '<span class="itbis-badge" style="font-size:10px;">18%</span>' : '<span class="itbis-badge off" style="font-size:10px;">No</span>'}</td>
+        <td style="text-align:center;">${itbisCell}</td>
         <td style="text-align:right;font-weight:700;color:var(--color-primary);">${Utils.fmt(totalFinal)}</td>
-        <td>
-          <button class="btn btn--print btn--sm" onclick="imprimirVentaHistorial('${v.id}')">
+        <td style="text-align:center;">
+          <button class="btn btn--print btn--sm" title="Reimprimir factura" onclick="imprimirVentaHistorial('${v.id}')">
             <i class="fas fa-print"></i>
           </button>
         </td>
       </tr>`;
     }).join('');
 
-    Utils.showAlert(stDiv, 'success', `${vRes.data.length} ventas cargadas.`);
+    Utils.showAlert(stDiv, 'success', `${vRes.data.length} facturas cargadas.`);
     setTimeout(UI.optimizeTables, 80);
 
   } catch (err) {
     Utils.showAlert(stDiv, 'error', err.message);
-    tb.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--color-danger);">Error: ${err.message}</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--color-danger);">Error: ${err.message}</td></tr>`;
   }
 }
 
@@ -402,7 +400,9 @@ async function imprimirVentaHistorial(ventaId) {
   } catch {}
 
   const subtotal = parseFloat(venta.cantidad) * parseFloat(venta.precio_venta);
-  const conItbis = venta.con_itbis !== undefined ? venta.con_itbis : true;
+  const rawItbis = venta.con_itbis;
+  const conItbis = rawItbis === true || rawItbis === 1 ||
+    (typeof rawItbis === 'string' && rawItbis.trim().toLowerCase() === 'true');
 
   const invData = {
     id:          venta.id,

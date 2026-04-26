@@ -139,83 +139,100 @@ const UI = (() => {
   // ---- Shared styles for modal preview ----
   const PREVIEW_STYLE = `
     <style>
-      .inv-doc { font-family:'Segoe UI',Arial,sans-serif; font-size:10px; color:#1a1a2e; }
+      .inv-doc { font-family:'Segoe UI',Arial,sans-serif; font-size:13px; color:#1a1a2e; }
 
       /* Header */
-      .inv-header { display:flex; gap:14px; align-items:stretch; margin-bottom:12px; padding-bottom:10px; border-bottom:3px solid #22783A; }
+      .inv-header { display:flex; gap:16px; align-items:stretch; margin-bottom:14px; padding-bottom:12px; border-bottom:3px solid #22783A; }
 
-      /* Logo box */
+      /* Logo box — ahora con espacio para imagen de logo */
       .inv-logo {
         background:linear-gradient(135deg,#1a5c30,#22783A 55%,#2d9e4e);
-        color:#fff; border-radius:8px; padding:10px 12px;
-        min-width:170px; max-width:190px; position:relative; overflow:hidden; flex-shrink:0;
+        color:#fff; border-radius:10px; padding:12px 14px;
+        min-width:200px; max-width:220px; position:relative; overflow:hidden; flex-shrink:0;
+        display:flex; flex-direction:column; justify-content:space-between;
       }
-      .inv-logo::after { content:''; position:absolute; bottom:-16px; right:-16px; width:60px; height:60px; border-radius:50%; background:rgba(255,255,255,0.07); }
-      .inv-logo__title { font-size:12px; font-weight:700; line-height:1.25; padding-right:32px; margin-bottom:5px; }
-      .inv-logo__icon { position:absolute; top:7px; right:7px; background:rgba(0,0,0,0.25); border-radius:5px; width:28px; height:24px; display:flex; align-items:center; justify-content:center; font-size:14px; }
-      .inv-logo__sep { border-top:1px solid rgba(255,255,255,0.3); margin:5px 0; }
-      .inv-logo__info { font-size:6.5px; line-height:1.75; opacity:0.9; }
-      .inv-logo__contact { margin-top:4px; font-size:7px; font-weight:700; color:#b4ffb4; }
+      .inv-logo::after { content:''; position:absolute; bottom:-18px; right:-18px; width:70px; height:70px; border-radius:50%; background:rgba(255,255,255,0.07); }
+      /* Área de logo imagen */
+      .inv-logo__img-wrap {
+        width:64px; height:64px; border-radius:8px; overflow:hidden;
+        background:rgba(255,255,255,0.15); display:flex; align-items:center; justify-content:center;
+        margin-bottom:8px; border:2px solid rgba(255,255,255,0.3);
+      }
+      .inv-logo__img-wrap img { width:100%; height:100%; object-fit:contain; }
+      .inv-logo__img-placeholder { font-size:28px; line-height:1; }
+      .inv-logo__title { font-size:15px; font-weight:800; line-height:1.25; margin-bottom:6px; }
+      .inv-logo__sep { border-top:1px solid rgba(255,255,255,0.3); margin:6px 0; }
+      .inv-logo__info { font-size:9px; line-height:1.8; opacity:0.9; }
+      .inv-logo__contact { margin-top:5px; font-size:9.5px; font-weight:700; color:#b4ffb4; }
 
       /* Title area */
       .inv-title-area { flex:1; display:flex; flex-direction:column; justify-content:space-between; }
       .inv-title-row { display:flex; justify-content:space-between; align-items:flex-start; }
-      .inv-type { font-size:22px; font-weight:800; color:#1a5c30; letter-spacing:-1px; line-height:1; }
-      .inv-badge { background:#1a5c30; color:#fff; font-size:7.5px; font-weight:700; padding:3px 9px; border-radius:20px; letter-spacing:0.07em; align-self:flex-start; }
-      .inv-nums { display:grid; grid-template-columns:1fr 1fr; gap:3px 12px; font-size:8px; margin-top:7px; }
+      .inv-type { font-size:28px; font-weight:800; color:#1a5c30; letter-spacing:-1px; line-height:1; }
+      .inv-badge { background:#1a5c30; color:#fff; font-size:10px; font-weight:700; padding:4px 12px; border-radius:20px; letter-spacing:0.07em; align-self:flex-start; }
+      .inv-nums { display:grid; grid-template-columns:1fr 1fr; gap:4px 14px; font-size:11px; margin-top:9px; }
       .inv-nums span { color:#666; }
       .inv-nums strong { color:#1a1a2e; }
 
       /* Client block */
       .inv-client {
         background:#f0faf4; border:1px solid #c8ead4; border-left:4px solid #22783A;
-        border-radius:0 5px 5px 0; padding:7px 10px; margin-top:6px; font-size:8px;
+        border-radius:0 6px 6px 0; padding:9px 12px; margin-top:8px; font-size:11px;
       }
-      .inv-client-lbl { color:#22783A; font-weight:700; font-size:6.5px; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:2px; }
-      .inv-client-name { font-size:9px; font-weight:700; color:#1a1a2e; margin-bottom:3px; }
-      .inv-client-grid { display:grid; grid-template-columns:1fr 1fr; gap:2px 12px; }
-      .inv-client-item { font-size:7.5px; color:#555; }
+      .inv-client-lbl { color:#22783A; font-weight:700; font-size:9px; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:3px; }
+      .inv-client-name { font-size:13px; font-weight:700; color:#1a1a2e; margin-bottom:4px; }
+      .inv-client-grid { display:grid; grid-template-columns:1fr 1fr; gap:3px 14px; }
+      .inv-client-item { font-size:10px; color:#555; }
 
       /* Table */
-      .inv-table { width:100%; border-collapse:collapse; margin-top:10px; font-size:9px; }
+      .inv-table { width:100%; border-collapse:collapse; margin-top:12px; font-size:12px; }
       .inv-table thead tr { background:#1a5c30; color:#fff; }
-      .inv-table th { padding:5px 7px; font-weight:700; font-size:7.5px; text-transform:uppercase; letter-spacing:0.05em; }
+      .inv-table th { padding:7px 9px; font-weight:700; font-size:10px; text-transform:uppercase; letter-spacing:0.05em; }
       .inv-table th:not(:first-child):not(:nth-child(2)) { text-align:center; }
       .inv-table th:last-child, .inv-table th:nth-last-child(2) { text-align:right; }
       .inv-table tbody tr:nth-child(odd) { background:#f4fdf7; }
-      .inv-table td { padding:5px 7px; border-bottom:1px solid #e0f0e5; color:#2a2a2a; }
+      .inv-table td { padding:7px 9px; border-bottom:1px solid #e0f0e5; color:#2a2a2a; }
       .inv-table td.tc { text-align:center; }
       .inv-table td.tr { text-align:right; }
       .inv-table td.no { color:#22783A; font-weight:700; text-align:center; }
 
       /* Totals section */
-      .inv-bottom { display:flex; justify-content:space-between; align-items:flex-end; margin-top:12px; gap:12px; }
-      .inv-notes { flex:1; font-size:7.5px; color:#666; line-height:1.6; max-width:55%; }
-      .inv-notes strong { display:block; color:#1a1a2e; font-size:7px; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:2px; }
+      .inv-bottom { display:flex; justify-content:space-between; align-items:flex-end; margin-top:14px; gap:14px; }
+      .inv-notes { flex:1; font-size:10px; color:#666; line-height:1.7; max-width:55%; }
+      .inv-notes strong { display:block; color:#1a1a2e; font-size:9px; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:3px; }
 
       /* Totals table */
-      .inv-totals { min-width:190px; }
+      .inv-totals { min-width:210px; }
       .inv-totals table { width:100%; border-collapse:collapse; }
-      .inv-totals td { padding:3px 7px; font-size:8.5px; }
+      .inv-totals td { padding:4px 9px; font-size:11px; }
       .inv-totals .tl { text-align:right; color:#666; }
-      .inv-totals .tv { text-align:right; font-weight:700; color:#1a1a2e; width:85px; border-bottom:1px solid #e0f0e5; }
+      .inv-totals .tv { text-align:right; font-weight:700; color:#1a1a2e; width:95px; border-bottom:1px solid #e0f0e5; }
       .inv-totals tr.grand { background:#1a5c30; border-radius:4px; overflow:hidden; }
-      .inv-totals tr.grand td { color:#fff; padding:6px 9px; font-size:10px; font-weight:800; }
+      .inv-totals tr.grand td { color:#fff; padding:8px 11px; font-size:13px; font-weight:800; }
       .inv-totals tr.grand .tl { color:rgba(255,255,255,0.85); }
-      .inv-totals tr.grand .tv { border-bottom:none; font-size:11px; }
+      .inv-totals tr.grand .tv { border-bottom:none; font-size:14px; }
 
       /* Footer */
-      .inv-footer { margin-top:14px; padding-top:8px; border-top:1px dashed #c8ead4; text-align:center; font-size:7px; color:#999; }
+      .inv-footer { margin-top:16px; padding-top:9px; border-top:1px dashed #c8ead4; text-align:center; font-size:9.5px; color:#999; }
       .inv-footer strong { color:#22783A; }
     </style>`;
 
   // ---- Shared logo block ----
+  // Para usar tu logo: coloca la imagen en image/logo-sin-fondo.png (ya configurada)
+  const LOGO_IMG_SRC = 'image/logo-sin-fondo.png';
+
   function logoBlock() {
     const E = Utils.EMPRESA;
+    const logoImg = `
+      <div class="inv-logo__img-wrap">
+        <img src="${LOGO_IMG_SRC}" alt="Logo"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+        <span class="inv-logo__img-placeholder" style="display:none;">🏠</span>
+      </div>`;
     return `
       <div class="inv-logo">
+        ${logoImg}
         <div class="inv-logo__title">${E.nombre}</div>
-        <div class="inv-logo__icon">🏠</div>
         <div class="inv-logo__sep"></div>
         <div class="inv-logo__info">
           correo: ${E.correo}<br>
@@ -226,10 +243,9 @@ const UI = (() => {
       </div>`;
   }
 
-  // ---- Venta preview — CORREGIDO: datos del cliente + ITBIS condicional ----
+  // ---- Venta preview ----
   function buildVentaHTML(inv) {
-    // ✅ ITBIS condicional
-    const conItbis = inv.conItbis !== undefined ? inv.conItbis : true;
+    const conItbis = inv.conItbis !== undefined ? inv.conItbis : false;
     const itebis   = conItbis ? inv.total * Utils.EMPRESA.itebis : 0;
     const total    = inv.total + itebis;
 
@@ -247,12 +263,11 @@ const UI = (() => {
                 <div><span>No.</span> <strong>${inv.id}</strong></div>
                 <div><span>Fecha:</span> <strong>${inv.fecha}</strong></div>
                 <div><span>Hora:</span> <strong>${inv.hora || '—'}</strong></div>
-                <div><span>RNC:</span> <strong>—</strong></div>
+                <div><span>RNC:</span> <strong>${Utils.EMPRESA.rnc || '—'}</strong></div>
               </div>
             </div>
-            <!-- ✅ Bloque cliente visible y completo -->
             <div class="inv-client">
-              <div class="inv-client-lbl">Datos del Cliente</div>
+              <div class="inv-client-lbl">Facturado a</div>
               <div class="inv-client-name">${inv.cliente || '—'}</div>
               <div class="inv-client-grid">
                 ${inv.telefono  ? `<div class="inv-client-item"><b>Tel:</b> ${inv.telefono}</div>` : ''}
@@ -265,18 +280,24 @@ const UI = (() => {
 
         <table class="inv-table">
           <thead>
-            <tr><th style="width:30px">No.</th><th>Descripción</th><th style="width:45px">Cant.</th><th style="width:85px">P. Unitario</th><th style="width:85px">Subtotal</th></tr>
+            <tr>
+              <th style="width:30px">No.</th>
+              <th>Descripción</th>
+              <th style="width:45px">Cant.</th>
+              <th style="width:85px">P. Unitario</th>
+              <th style="width:85px">Subtotal</th>
+            </tr>
           </thead>
           <tbody>
             <tr>
               <td class="no">A</td>
-              <td>${inv.producto}${inv.codigo ? ` <span style="color:#888;font-size:8px;">(${inv.codigo})</span>` : ''}</td>
+              <td>${inv.producto}${inv.codigo ? ` <span style="color:#888;font-size:10px;">(${inv.codigo})</span>` : ''}</td>
               <td class="tc">${inv.cantidad}</td>
               <td class="tr">${Utils.fmt(inv.precio)}</td>
               <td class="tr">${Utils.fmt(inv.total)}</td>
             </tr>
-            <tr><td colspan="5" style="height:16px;border-bottom:1px solid #e0f0e5;"></td></tr>
-            <tr><td colspan="5" style="height:16px;border-bottom:1px solid #e0f0e5;"></td></tr>
+            <tr><td colspan="5" style="height:18px;border-bottom:1px solid #e0f0e5;"></td></tr>
+            <tr><td colspan="5" style="height:18px;border-bottom:1px solid #e0f0e5;"></td></tr>
           </tbody>
         </table>
 
@@ -290,15 +311,17 @@ const UI = (() => {
                 <td class="tl">Subtotal</td>
                 <td class="tv">${Utils.fmt(inv.total)}</td>
               </tr>
-              ${conItbis ? `<tr>
+              ${conItbis ? `
+              <tr>
                 <td class="tl">ITBIS ${Math.round(Utils.EMPRESA.itebis * 100)}%</td>
                 <td class="tv">${Utils.fmt(itebis)}</td>
-              </tr>` : `<tr>
-                <td class="tl" style="font-size:7px;color:#bbb;">Sin ITBIS</td>
+              </tr>` : `
+              <tr>
+                <td class="tl" style="color:#bbb;">Sin ITBIS</td>
                 <td class="tv" style="color:#bbb;">—</td>
               </tr>`}
               <tr class="grand">
-                <td class="tl">Total RDS</td>
+                <td class="tl">Total RD$</td>
                 <td class="tv">${Utils.fmt(total)}</td>
               </tr>
             </table>
@@ -311,26 +334,24 @@ const UI = (() => {
       </div>`;
   }
 
-  // ---- Cotización preview — CORREGIDO: datos del cliente + ITBIS condicional ----
+  // ---- Cotización preview ----
   function buildCotHTML(h, items) {
-    // ✅ ITBIS condicional
-    const subtotal  = h.subtotal !== undefined ? h.subtotal : items.reduce((s, it) => s + it.subtotal, 0);
-    const conItbis  = h.conItbis !== false;
-    const itebis    = conItbis ? subtotal * Utils.EMPRESA.itebis : 0;
-    const total     = subtotal + itebis;
+    const subtotal = h.subtotal !== undefined ? h.subtotal : items.reduce((s, it) => s + it.subtotal, 0);
+    const conItbis = h.conItbis !== false;
+    const itebis   = conItbis ? subtotal * Utils.EMPRESA.itebis : 0;
+    const total    = subtotal + itebis;
 
     const itemRows = items.map((it, i) => `
       <tr>
         <td class="no">${String.fromCharCode(65 + i)}</td>
         <td>${it.nombre}</td>
         <td class="tc">${it.cant}</td>
-        <td class="tc">${it.unidad || 'M2'}</td>
         <td class="tr">${Utils.fmt(it.precio)}</td>
         <td class="tr">${Utils.fmt(it.subtotal)}</td>
       </tr>`).join('');
 
     const emptyRows = Array(Math.max(0, 3 - items.length))
-      .fill('<tr><td></td><td style="height:16px;border-bottom:1px solid #e0f0e5;"></td><td></td><td></td><td></td><td></td></tr>')
+      .fill('<tr><td></td><td style="height:18px;border-bottom:1px solid #e0f0e5;"></td><td></td><td></td><td></td></tr>')
       .join('');
 
     return `${PREVIEW_STYLE}
@@ -347,10 +368,9 @@ const UI = (() => {
                 <div><span>No.</span> <strong>${h.numero}</strong></div>
                 <div><span>Fecha:</span> <strong>${h.fecha}</strong></div>
                 <div><span>Válida:</span> <strong>${h.validez || 15} días</strong></div>
-                <div><span>RNC:</span> <strong>—</strong></div>
+                <div><span>RNC:</span> <strong>${Utils.EMPRESA.rnc || '—'}</strong></div>
               </div>
             </div>
-            <!-- ✅ Bloque cliente visible y completo -->
             <div class="inv-client">
               <div class="inv-client-lbl">Cotizado a</div>
               <div class="inv-client-name">${h.cliente || '—'}</div>
@@ -365,7 +385,13 @@ const UI = (() => {
 
         <table class="inv-table">
           <thead>
-            <tr><th style="width:30px">No.</th><th>Descripción</th><th style="width:45px">Área</th><th style="width:35px">UN</th><th style="width:85px">Valor</th><th style="width:85px">Subtotal</th></tr>
+            <tr>
+              <th style="width:30px">No.</th>
+              <th>Descripción</th>
+              <th style="width:45px">Cant.</th>
+              <th style="width:85px">Valor Unit.</th>
+              <th style="width:85px">Subtotal</th>
+            </tr>
           </thead>
           <tbody>
             ${itemRows}
@@ -383,15 +409,17 @@ const UI = (() => {
                 <td class="tl">Subtotal</td>
                 <td class="tv">${Utils.fmt(subtotal)}</td>
               </tr>
-              ${conItbis ? `<tr>
+              ${conItbis ? `
+              <tr>
                 <td class="tl">ITBIS ${Math.round(Utils.EMPRESA.itebis * 100)}%</td>
                 <td class="tv">${Utils.fmt(itebis)}</td>
-              </tr>` : `<tr>
-                <td class="tl" style="font-size:7px;color:#bbb;">Sin ITBIS</td>
+              </tr>` : `
+              <tr>
+                <td class="tl" style="color:#bbb;">Sin ITBIS</td>
                 <td class="tv" style="color:#bbb;">—</td>
               </tr>`}
               <tr class="grand">
-                <td class="tl">Total RDS</td>
+                <td class="tl">Total RD$</td>
                 <td class="tv">${Utils.fmt(total)}</td>
               </tr>
             </table>
