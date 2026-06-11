@@ -191,10 +191,24 @@ const UI = (() => {
       .inv-table th:not(:first-child):not(:nth-child(2)) { text-align:center; }
       .inv-table th:last-child, .inv-table th:nth-last-child(2) { text-align:right; }
       .inv-table tbody tr:nth-child(odd) { background:#f4fdf7; }
-      .inv-table td { padding:7px 9px; border-bottom:1px solid #e0f0e5; color:#2a2a2a; }
+      .inv-table td { padding:7px 9px; border-bottom:none; color:#2a2a2a; }
       .inv-table td.tc { text-align:center; }
       .inv-table td.tr { text-align:right; }
       .inv-table td.no { color:#22783A; font-weight:700; text-align:center; }
+
+      /* Cotización — fuentes más grandes */
+      .cot .inv-doc { font-size:14px; }
+      .cot .inv-table { font-size:13px; }
+      .cot .inv-table th { font-size:11px; padding:8px 10px; }
+      .cot .inv-table td { padding:9px 10px; }
+      .cot .inv-client-name { font-size:15px; }
+      .cot .inv-client-item { font-size:12px; }
+      .cot .inv-nums { font-size:12px; }
+      .cot .inv-type { font-size:30px; }
+      .cot .cot-notes { font-size:12px; }
+      .cot .cot-totals td { font-size:12px; padding:6px 13px; }
+      .cot .cot-totals tr.grand td { font-size:14px; padding:10px 13px; }
+      .cot .cot-totals tr.grand .tv { font-size:15px; }
 
       /* Totals section */
       .inv-bottom { display:flex; justify-content:space-between; align-items:flex-end; margin-top:14px; gap:14px; }
@@ -336,26 +350,56 @@ const UI = (() => {
 
   // ---- Cotización preview ----
   function buildCotHTML(h, items) {
-    const subtotal = h.subtotal !== undefined ? h.subtotal : items.reduce((s, it) => s + it.subtotal, 0);
-    const conItbis = h.conItbis !== false;
-    const itebis   = conItbis ? subtotal * Utils.EMPRESA.itebis : 0;
-    const total    = subtotal + itebis;
+    const totalLineas = items.reduce((s, it) => s + it.subtotal, 0);
+    const descuento   = h.descuento || 0;
+    const subtotal    = totalLineas - descuento;
+    const conItbis    = h.conItbis !== false;
+    const itebis      = conItbis ? subtotal * Utils.EMPRESA.itebis : 0;
+    const total       = subtotal + itebis;
 
-    const itemRows = items.map((it, i) => `
+    // Columnas: #, Cód. Art., Artículo, Cantidad, Precio Unit., % Desc., Precio c/Desc., Total
+    const itemRows = items.map((it, i) => {
+      const descPct     = it.descPct || 0;
+      const precioDesc  = it.precio * (1 - descPct / 100);
+      const lineTotal   = precioDesc * it.cant;
+      return `
       <tr>
-        <td class="no">${String.fromCharCode(65 + i)}</td>
+        <td class="tc" style="font-weight:700;color:var(--color-primary,#22783A);">${i + 1}</td>
+        <td class="tc" style="color:#555;font-size:11px;">${it.codigo || '—'}</td>
         <td>${it.nombre}</td>
         <td class="tc">${it.cant}</td>
         <td class="tr">${Utils.fmt(it.precio)}</td>
-        <td class="tr">${Utils.fmt(it.subtotal)}</td>
-      </tr>`).join('');
+        <td class="tc">${descPct > 0 ? descPct.toFixed(2) + '%' : '0.00'}</td>
+        <td class="tr">${Utils.fmt(precioDesc)}</td>
+        <td class="tr" style="font-weight:600;">${Utils.fmt(lineTotal)}</td>
+      </tr>`;
+    }).join('');
 
     const emptyRows = Array(Math.max(0, 3 - items.length))
-      .fill('<tr><td></td><td style="height:18px;border-bottom:1px solid #e0f0e5;"></td><td></td><td></td><td></td></tr>')
+      .fill(`<tr>
+        <td style="height:20px;"></td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>`)
       .join('');
 
     return `${PREVIEW_STYLE}
-      <div class="inv-doc">
+      <style>
+        .inv-table th.th-sm { width:55px; }
+        .inv-table th.th-xs { width:38px; }
+        .inv-table th.th-md { width:80px; }
+        .cot-bottom { display:flex; justify-content:space-between; align-items:flex-end; margin-top:14px; gap:14px; }
+        .cot-notes  { flex:1; font-size:10px; color:#666; line-height:1.7; }
+        .cot-notes strong { display:block; color:#1a1a2e; font-size:9px; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:3px; }
+        .cot-totals { min-width:230px; border:1px solid #c8ead4; border-radius:6px; overflow:hidden; }
+        .cot-totals table { width:100%; border-collapse:collapse; }
+        .cot-totals td { padding:5px 11px; font-size:11px; border-bottom:1px solid #e8f5ec; }
+        .cot-totals .tl { color:#555; }
+        .cot-totals .tv { text-align:right; font-weight:600; color:#1a1a2e; }
+        .cot-totals tr.ct-head td { background:#f0faf4; font-size:10px; font-weight:700; color:#22783A; text-transform:uppercase; letter-spacing:0.05em; }
+        .cot-totals tr.grand td { background:#1a5c30; color:#fff; font-size:13px; font-weight:800; border-bottom:none; padding:8px 11px; }
+        .cot-totals tr.grand .tv { color:#fff; font-size:14px; }
+      </style>
+      <div class="inv-doc cot">
         <div class="inv-header">
           ${logoBlock()}
           <div class="inv-title-area">
@@ -365,32 +409,39 @@ const UI = (() => {
                 <div class="inv-badge">COTIZACIÓN</div>
               </div>
               <div class="inv-nums">
-                <div><span>No.</span> <strong>${h.numero}</strong></div>
-                <div><span>Fecha:</span> <strong>${h.fecha}</strong></div>
+                <div><span>Número:</span> <strong>${h.numero}</strong></div>
+                <div><span>Fecha:</span>  <strong>${h.fecha}</strong></div>
                 <div><span>Válida:</span> <strong>${h.validez || 15} días</strong></div>
-                <div><span>RNC:</span> <strong>${Utils.EMPRESA.rnc || '—'}</strong></div>
+                <div><span>Moneda:</span> <strong>RD$</strong></div>
               </div>
             </div>
             <div class="inv-client">
               <div class="inv-client-lbl">Cotizado a</div>
               <div class="inv-client-name">${h.cliente || '—'}</div>
               <div class="inv-client-grid">
+                ${h.cedula    ? `<div class="inv-client-item"><b>Cédula/RNC:</b> ${h.cedula}</div>` : ''}
                 ${h.telefono  ? `<div class="inv-client-item"><b>Tel:</b> ${h.telefono}</div>` : ''}
                 ${h.email     ? `<div class="inv-client-item"><b>Email:</b> ${h.email}</div>` : ''}
-                ${h.direccion ? `<div class="inv-client-item"><b>Dirección:</b> ${h.direccion}</div>` : '<div class="inv-client-item"><b>Dirección:</b> Santo Domingo D.N.</div>'}
+                ${h.direccion ? `<div class="inv-client-item"><b>Dirección:</b> ${h.direccion}</div>`
+                              : '<div class="inv-client-item"><b>Dirección:</b> Santo Domingo D.N.</div>'}
+                ${h.vendedor  ? `<div class="inv-client-item"><b>Vendedor:</b> ${h.vendedor}</div>` : ''}
               </div>
             </div>
           </div>
         </div>
 
-        <table class="inv-table">
+        <!-- Tabla principal con 8 columnas como la referencia -->
+        <table class="inv-table" style="margin-top:14px;">
           <thead>
             <tr>
-              <th style="width:30px">No.</th>
-              <th>Descripción</th>
-              <th style="width:45px">Cant.</th>
-              <th style="width:85px">Valor Unit.</th>
-              <th style="width:85px">Subtotal</th>
+              <th class="th-xs" style="text-align:center;">#</th>
+              <th class="th-sm" style="text-align:center;">Cód. Art.</th>
+              <th>Artículo</th>
+              <th class="th-xs" style="text-align:center;">Cant.</th>
+              <th class="th-md" style="text-align:right;">Precio Unit.</th>
+              <th class="th-xs" style="text-align:center;">% Desc.</th>
+              <th class="th-md" style="text-align:right;">P. c/Desc.</th>
+              <th class="th-md" style="text-align:right;">Total</th>
             </tr>
           </thead>
           <tbody>
@@ -399,12 +450,27 @@ const UI = (() => {
           </tbody>
         </table>
 
-        <div class="inv-bottom">
-          <div class="inv-notes">
-            ${h.notas ? `<strong>Condiciones de Pago</strong>${h.notas}` : '<strong>Precios sujetos a cambio sin previo aviso.</strong>'}
+        <div class="cot-bottom" style="margin-top:14px;">
+          <!-- Comentarios / Preparado por -->
+          <div class="cot-notes">
+            <strong>Comentarios</strong>
+            ${h.notas || ''}
+            <div style="margin-top:12px;font-size:10px;">
+              <b>Preparado por:</b> ${h.vendedor || Utils.EMPRESA.contacto || '—'}
+            </div>
           </div>
-          <div class="inv-totals">
+
+          <!-- Bloque de totales igual a la referencia -->
+          <div class="cot-totals">
             <table>
+              <tr>
+                <td class="tl">Total Líneas</td>
+                <td class="tv">${Utils.fmt(totalLineas)}</td>
+              </tr>
+              <tr>
+                <td class="tl">Descuento</td>
+                <td class="tv">${Utils.fmt(descuento)}</td>
+              </tr>
               <tr>
                 <td class="tl">Subtotal</td>
                 <td class="tv">${Utils.fmt(subtotal)}</td>
@@ -419,8 +485,8 @@ const UI = (() => {
                 <td class="tv" style="color:#bbb;">—</td>
               </tr>`}
               <tr class="grand">
-                <td class="tl">Total RD$</td>
-                <td class="tv">${Utils.fmt(total)}</td>
+                <td class="tl">Total</td>
+                <td class="tv">RD$ ${Utils.fmt(total)}</td>
               </tr>
             </table>
           </div>
